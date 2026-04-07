@@ -1,0 +1,26 @@
+/**
+ * 稀有金属价格路由
+ */
+const express = require('express');
+const router = express.Router();
+const metalPricesController = require('../../controllers/business/metalPricesController');
+const { authenticateToken } = require('../../middleware/auth');
+const { requirePermission } = require('../../middleware/requirePermission');
+
+// 所有路由需要认证
+router.use(authenticateToken);
+
+// 获取实时金属价格 (支持两种路径)
+router.get('/', requirePermission('basedata:materials:view'), metalPricesController.getRealTimeMetalPrices);
+router.get('/realtime', requirePermission('basedata:materials:view'), metalPricesController.getRealTimeMetalPrices);
+
+// 获取金属价格历史数据
+router.get('/history', requirePermission('basedata:materials:view'), metalPricesController.getMetalPriceHistory);
+
+// 获取特定金属价格
+router.get('/:symbol', requirePermission('basedata:materials:view'), metalPricesController.getMetalPrice);
+
+// 更新金属价格
+router.put('/', requirePermission('basedata:materials:update'), metalPricesController.updatePrice);
+
+module.exports = router;

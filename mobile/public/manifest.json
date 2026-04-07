@@ -1,0 +1,13 @@
+{
+  "name": "KACON-ERP移动端",
+  "short_name": "KACON-ERP",
+  "description": "企业资源管理系统移动端",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#ffffff",
+  "theme_color": "#1989fa",
+  "icons": [],
+  "orientation": "portrait",
+  "scope": "/",
+  "id": "kacon-erp-mobile"
+} 

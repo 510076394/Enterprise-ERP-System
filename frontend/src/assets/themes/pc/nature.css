@@ -1,0 +1,437 @@
+/**
+ * PC端 - 自然主题
+ * @description 清新自然的绿色主题样式
+ * @date 2025-10-27
+ * @version 2.1.0
+ * @优化内容 统一CSS变量命名、优化自然配色、增强清新感
+ */
+
+:root[data-theme="nature"] {
+  /* ==================== 颜色系统 ==================== */
+
+  /* 主色系 - 自然绿（生机勃勃） */
+  --color-primary: #51CF66;
+  --color-primary-light-3: #74d983;
+  --color-primary-light-5: #96e3a0;
+  --color-primary-light-7: #b9edbd;
+  --color-primary-light-8: #caf3cd;
+  --color-primary-light-9: #e6f9e8;
+  --color-primary-dark-2: #40a651;
+
+  /* 功能色（自然配色） */
+  --color-success: #51CF66;
+  --color-success-light: #e6f9e8;
+  --color-success-dark: #40a651;
+  --color-warning: #FCC419;
+  --color-warning-light: #fff3d4;
+  --color-warning-dark: #ca9d14;
+  --color-danger: #FF6B6B;
+  --color-danger-light: #ffe9e9;
+  --color-danger-dark: #cc5656;
+  --color-info: #339AF0;
+  --color-info-light: #d4ebfc;
+  --color-info-dark: #297bc0;
+
+  /* 文本颜色 - 5个层级（自然色调） */
+  --color-text-primary: #2B8A3E;      /* 主要文字（深绿） */
+  --color-text-regular: #37B24D;      /* 常规文字（绿色） */
+  --color-text-secondary: #74C0FC;    /* 次要文字（天蓝） */
+  --color-text-placeholder: #A9E34B;  /* 占位文字（浅绿） */
+  --color-text-disabled: #C3D9CC;     /* 禁用文字 */
+
+  /* 边框颜色 - 4个层级（清新色调） */
+  --color-border-darker: #A8D5BA;     /* 深边框 */
+  --color-border-dark: #B8E0C8;       /* 较深边框 */
+  --color-border-base: #C3FAE8;       /* 基础边框 */
+  --color-border-light: #D3F9D8;      /* 浅边框 */
+  --color-border-lighter: #E7F5FF;    /* 更浅边框 */
+  --color-border-extra-light: #F3F0FF;/* 超浅边框 */
+
+  /* 背景颜色 - 多层级（自然背景） */
+  --color-bg-base: #FFFFFF;           /* 基础白色 */
+  --color-bg-page: #F0FFF4;           /* 页面背景（淡绿） */
+  --color-bg-overlay: rgba(81, 207, 102, 0.15); /* 遮罩层 */
+  --color-bg-hover: #E8F8EC;          /* 悬停背景 */
+  --color-bg-light: #F5FDF7;          /* 浅色背景 */
+
+  /* 自然主题特有颜色（大自然元素） */
+  --color-leaf: #40C057;              /* 叶绿色 */
+  --color-grass: #51CF66;             /* 草绿色 */
+  --color-sky: #74C0FC;               /* 天空蓝 */
+  --color-earth: #A0785A;             /* 大地棕 */
+  --color-flower: #FF6B9D;            /* 花粉色 */
+  --color-water: #339AF0;             /* 水蓝色 */
+  
+  /* ========== 间距系统 ========== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+
+  /* ========== 字体系统 ========== */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-chinese: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-xxl: 24px;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-base: 1.5;
+  --line-height-heading: 1.2;
+
+  /* ========== 圆角系统（自然圆润） ========== */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-round: 999px;
+
+  /* ========== 阴影系统（柔和自然阴影） ========== */
+  --shadow-sm: 0 2px 6px rgba(81, 207, 102, 0.12);
+  --shadow-base: 0 2px 10px rgba(81, 207, 102, 0.14);
+  --shadow-md: 0 4px 14px rgba(81, 207, 102, 0.16);
+  --shadow-lg: 0 8px 20px rgba(81, 207, 102, 0.18);
+  --shadow-xl: 0 12px 28px rgba(81, 207, 102, 0.2);
+
+  /* 特殊阴影效果 */
+  --shadow-card: 0 2px 10px 0 rgba(81, 207, 102, 0.12);
+  --shadow-card-hover: 0 6px 18px 0 rgba(81, 207, 102, 0.18);
+  --shadow-inset: inset 0 2px 4px rgba(81, 207, 102, 0.08);
+
+  /* ========== 过渡系统（统一动画时长） ========== */
+  --transition-fast: 0.15s;
+  --transition-base: 0.3s;
+  --transition-slow: 0.45s;
+  --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ========== Z-index系统 ========== */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+}
+
+/* ========== 自然主题特效 ========== */
+
+/* 自然卡片 */
+.nature-card {
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-base);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+}
+
+.nature-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+}
+
+/* 叶子装饰 */
+.nature-leaf-decoration::before {
+  content: '🌿';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 24px;
+  opacity: 0.3;
+}
+
+/* 自然按钮 */
+.nature-button {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-round);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
+}
+
+.nature-button:hover {
+  background: var(--color-leaf);
+  box-shadow: var(--shadow-md);
+  transform: scale(1.02);
+}
+
+/* 波纹效果 */
+.nature-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.nature-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(81, 207, 102, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.nature-ripple:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* 生长动画 */
+.nature-grow {
+  animation: nature-grow-animation 0.5s ease-out;
+}
+
+@keyframes nature-grow-animation {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 摇摆动画 */
+.nature-sway {
+  animation: nature-sway-animation 3s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+@keyframes nature-sway-animation {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(2deg);
+  }
+  75% {
+    transform: rotate(-2deg);
+  }
+}
+
+/* ========== 自然主题全局样式覆盖 ========== */
+
+/* 整体页面 */
+[data-theme="nature"] body,
+[data-theme="nature"] .layout-container {
+  background: linear-gradient(135deg, #F0FFF4 0%, #E8F5E9 100%) !important;
+}
+
+/* 侧边栏自然化 */
+[data-theme="nature"] .sidebar,
+[data-theme="nature"] .el-aside {
+  background: linear-gradient(180deg, #2E7D32 0%, #388E3C 100%) !important;
+  border-right: 3px solid #66BB6A !important;
+  box-shadow: 4px 0 20px rgba(81, 207, 102, 0.2) !important;
+}
+
+[data-theme="nature"] .logo-container {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-bottom: 3px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+}
+
+[data-theme="nature"] .logo-container .title {
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 菜单自然化 */
+[data-theme="nature"] .el-menu {
+  background: transparent !important;
+}
+
+/* 侧边栏菜单项默认颜色 - 深绿色 */
+[data-theme="nature"] .sidebar .el-menu-item,
+[data-theme="nature"] .sidebar .el-sub-menu__title,
+[data-theme="nature"] .el-aside .el-menu-item,
+[data-theme="nature"] .el-aside .el-sub-menu__title {
+  color: #1B5E20 !important;
+  font-weight: 500 !important;
+  border-left: 4px solid transparent !important;
+  transition: all 0.3s ease !important;
+}
+
+/* 侧边栏菜单项文字 - 深绿色 */
+[data-theme="nature"] .sidebar .el-menu-item span,
+[data-theme="nature"] .sidebar .el-sub-menu__title span,
+[data-theme="nature"] .el-aside .el-menu-item span,
+[data-theme="nature"] .el-aside .el-sub-menu__title span {
+  color: #1B5E20 !important;
+}
+
+/* 悬停状态 - 深绿色，背景高亮 */
+[data-theme="nature"] .sidebar .el-menu-item:hover,
+[data-theme="nature"] .sidebar .el-sub-menu__title:hover,
+[data-theme="nature"] .el-aside .el-menu-item:hover,
+[data-theme="nature"] .el-aside .el-sub-menu__title:hover {
+  background: rgba(129, 199, 132, 0.2) !important;
+  border-left-color: #66BB6A !important;
+  color: #1B5E20 !important;
+}
+
+[data-theme="nature"] .sidebar .el-menu-item:hover span,
+[data-theme="nature"] .sidebar .el-sub-menu__title:hover span,
+[data-theme="nature"] .el-aside .el-menu-item:hover span,
+[data-theme="nature"] .el-aside .el-sub-menu__title:hover span {
+  color: #1B5E20 !important;
+}
+
+/* 当前页（激活状态）- 浅绿色 */
+[data-theme="nature"] .sidebar .el-menu-item.is-active,
+[data-theme="nature"] .el-aside .el-menu-item.is-active {
+  background: rgba(129, 199, 132, 0.3) !important;
+  border-left-color: #66BB6A !important;
+  color: #81C784 !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="nature"] .sidebar .el-menu-item.is-active span,
+[data-theme="nature"] .el-aside .el-menu-item.is-active span {
+  color: #81C784 !important;
+}
+
+/* 顶部导航栏自然化 */
+[data-theme="nature"] .header,
+[data-theme="nature"] .el-header {
+  background: linear-gradient(90deg, #FFFFFF 0%, #F1F8E9 100%) !important;
+  border-bottom: 3px solid #81C784 !important;
+  box-shadow: 0 2px 10px rgba(81, 207, 102, 0.15) !important;
+}
+
+/* 导航栏所有文字使用绿色 - 最高优先级 */
+[data-theme="nature"] .header,
+[data-theme="nature"] .el-header {
+  color: #2E7D32 !important;
+}
+
+[data-theme="nature"] .header *,
+[data-theme="nature"] .el-header * {
+  color: #2E7D32 !important;
+}
+
+[data-theme="nature"] .header span,
+[data-theme="nature"] .el-header span,
+[data-theme="nature"] .header .username,
+[data-theme="nature"] .el-header .username,
+[data-theme="nature"] .header .user-info,
+[data-theme="nature"] .el-header .user-info {
+  color: #2E7D32 !important;
+}
+
+[data-theme="nature"] .header .el-icon,
+[data-theme="nature"] .el-header .el-icon {
+  color: #66BB6A !important;
+}
+
+/* 导航菜单项 */
+[data-theme="nature"] .header .el-menu-item,
+[data-theme="nature"] .el-header .el-menu-item {
+  color: #2E7D32 !important;
+}
+
+[data-theme="nature"] .header .el-menu-item:hover,
+[data-theme="nature"] .el-header .el-menu-item:hover {
+  color: #66BB6A !important;
+  background: rgba(102, 187, 106, 0.1) !important;
+}
+
+[data-theme="nature"] .header .el-menu-item.is-active,
+[data-theme="nature"] .el-header .el-menu-item.is-active {
+  color: #66BB6A !important;
+  background: rgba(102, 187, 106, 0.15) !important;
+}
+
+/* 卡片自然化 */
+[data-theme="nature"] .el-card,
+[data-theme="nature"] .stat-card,
+[data-theme="nature"] .dashboard-card {
+  background: #FFFFFF !important;
+  border: 2px solid #C8E6C9 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 15px rgba(81, 207, 102, 0.1) !important;
+  transition: all 0.3s ease !important;
+}
+
+[data-theme="nature"] .el-card:hover,
+[data-theme="nature"] .stat-card:hover {
+  border-color: #81C784 !important;
+  box-shadow: 0 8px 25px rgba(81, 207, 102, 0.2) !important;
+  transform: translateY(-4px) !important;
+}
+
+/* 按钮自然化 */
+[data-theme="nature"] .el-button--primary {
+  background: linear-gradient(135deg, #66BB6A 0%, #81C784 100%) !important;
+  border: none !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  box-shadow: 0 4px 12px rgba(81, 207, 102, 0.3) !important;
+}
+
+[data-theme="nature"] .el-button--primary:hover {
+  background: linear-gradient(135deg, #81C784 0%, #A5D6A7 100%) !important;
+  box-shadow: 0 6px 18px rgba(81, 207, 102, 0.4) !important;
+  transform: translateY(-2px);
+}
+
+/* 表格自然化 */
+[data-theme="nature"] .el-table {
+  background: #FFFFFF !important;
+  border: 2px solid #C8E6C9 !important;
+  border-radius: 10px !important;
+}
+
+[data-theme="nature"] .el-table th {
+  background: linear-gradient(180deg, #E8F5E9 0%, #C8E6C9 100%) !important;
+  color: #2E7D32 !important;
+  font-weight: 600 !important;
+  border-bottom: 2px solid #81C784 !important;
+}
+
+[data-theme="nature"] .el-table tbody tr:hover {
+  background: #F1F8E9 !important;
+}
+
+/* 输入框自然化 */
+[data-theme="nature"] .el-input__wrapper {
+  background: #FFFFFF !important;
+  border: 2px solid #C8E6C9 !important;
+  border-radius: 10px !important;
+}
+
+[data-theme="nature"] .el-input__wrapper:hover,
+[data-theme="nature"] .el-input__wrapper.is-focus {
+  border-color: #81C784 !important;
+  box-shadow: 0 0 10px rgba(81, 207, 102, 0.2) !important;
+}
+
+/* 统计卡片图标自然化 */
+[data-theme="nature"] .stat-card .icon-container {
+  background: linear-gradient(135deg, #66BB6A 0%, #81C784 100%) !important;
+  box-shadow: 0 4px 12px rgba(81, 207, 102, 0.3) !important;
+}
+

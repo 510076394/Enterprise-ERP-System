@@ -1,0 +1,141 @@
+/* 全局样式 */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden; /* 阻止页面级水平滚动条 */
+}
+
+/* 通用样式类 */
+.page-container {
+  padding: 20px;
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mt-20 {
+  margin-top: 20px;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
+.ml-10 {
+  margin-left: 10px;
+}
+
+.mr-10 {
+  margin-right: 10px;
+}
+
+/* 主题相关样式 - 优化版 */
+html {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 浅色主题 */
+html.light {
+  --app-bg-color: #ffffff;
+  --app-text-color: #303133;
+  --app-border-color: #dcdfe6;
+}
+
+/* 深色主题 */
+html.dark {
+  --app-bg-color: #141414;
+  --app-text-color: #e5eaf3;
+  --app-border-color: #4c4d4f;
+}
+
+/* 应用主题变量到body */
+body {
+  background-color: var(--el-bg-color, var(--app-bg-color));
+  color: var(--el-text-color-primary, var(--app-text-color));
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 主题切换时的平滑过渡 */
+* {
+  transition-property: background-color, color, border-color, box-shadow;
+  transition-duration: 0.3s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 确保深色主题下的Element Plus组件正确显示 */
+html.dark .el-card {
+  background-color: var(--el-bg-color-page);
+  border-color: var(--el-border-color);
+}
+
+html.dark .el-menu {
+  background-color: var(--el-bg-color-page);
+}
+
+html.dark .el-table {
+  background-color: var(--el-bg-color-page);
+}
+
+html.dark .el-table th.el-table__cell {
+  background-color: var(--el-fill-color-light);
+}
+
+/* ==================== 对话框圆角强制应用 ==================== */
+/* 这些样式必须在最后加载，确保覆盖所有组件的样式 */
+
+.el-overlay .el-overlay-dialog .el-dialog,
+.el-dialog {
+  border-radius: 12px !important;
+  overflow: hidden !important;
+}
+
+.el-dialog .el-dialog__header {
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%) !important;
+  border-bottom: 1px solid #EBEEF5 !important;
+  padding: 18px 24px !important;
+  margin: 0 !important;
+}
+
+.el-dialog .el-dialog__title {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #303133 !important;
+}
+
+.el-dialog .el-dialog__body {
+  padding: 24px !important;
+}
+
+.el-dialog .el-dialog__footer {
+  border-top: 1px solid #EBEEF5 !important;
+  padding: 16px 24px !important;
+  background-color: #FAFAFA !important;
+}
+
+/* Descriptions 组件圆角 */
+.el-descriptions {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+.el-descriptions .el-descriptions__header {
+  background-color: #F5F7FA !important;
+  font-weight: 600 !important;
+  padding: 12px 16px !important;
+}
+
+.el-descriptions .el-descriptions__label {
+  background-color: #FAFAFA !important;
+  font-weight: 500 !important;
+}

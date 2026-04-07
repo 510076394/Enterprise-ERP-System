@@ -1,0 +1,31 @@
+/**
+ * userActivityRoutes.js
+ * @description 路由定义文件
+ * @date 2025-08-27
+ * @version 1.0.0
+ */
+
+const express = require('express');
+const router = express.Router();
+const userActivityController = require('../controllers/common/userActivityController');
+const { authenticateToken } = require('../middleware/auth');
+
+// 所有路由都需要认证
+router.use(authenticateToken);
+
+// 记录用户活动
+router.post('/log', userActivityController.logActivity);
+
+// 获取用户活动记录
+router.get('/', userActivityController.getUserActivities);
+
+// 获取用户统计数据
+router.get('/statistics', userActivityController.getUserStatistics);
+
+// 获取用户在线时长排行榜
+router.get('/online-time-ranking', userActivityController.getOnlineTimeRanking);
+
+// 导出用户活动记录
+router.get('/export', userActivityController.exportActivities);
+
+module.exports = router;

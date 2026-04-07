@@ -1,0 +1,78 @@
+@use './variables.scss' as *;
+
+// 重置样式
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-size: $font-size-md;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// 移除默认边距
+h1, h2, h3, h4, h5, h6, p {
+  margin: 0;
+  padding: 0;
+}
+
+// 移除列表样式
+ul, ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+// 链接样式
+a {
+  color: $primary-color;
+  text-decoration: none;
+  
+  &:hover, &:focus {
+    text-decoration: none;
+  }
+}
+
+// 按钮样式重置
+button {
+  outline: none;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+// 输入框样式重置
+input, textarea {
+  outline: none;
+}
+
+// 图片默认样式
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+// 滚动条样式
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+// 禁止选中文本
+.no-select {
+  user-select: none;
+} 

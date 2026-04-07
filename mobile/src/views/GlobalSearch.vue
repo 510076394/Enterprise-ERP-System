@@ -1,0 +1,752 @@
+<!--
+/**
+ * GlobalSearch.vue
+ * @description 移动端应用文件
+  * @date 2025-08-27
+ * @version 1.0.0
+ */
+-->
+<template>
+  <div class="global-search-page">
+    <NavBar title="全局搜索" left-arrow @click-left="$router.go(-1)" />
+    
+    <div class="search-container">
+      <!-- 搜索框 -->
+      <div class="search-header">
+        <Search 
+          v-model="searchKeyword" 
+          placeholder="搜索物料、客户、订单、任务..."
+          show-action
+          @search="handleSearch"
+          @clear="handleClear"
+          @focus="handleFocus"
+        >
+          <template #action>
+            <div @click="handleSearch" class="search-action">搜索</div>
+          </template>
+        </Search>
+      </div>
+
+      <!-- 搜索历史 -->
+      <div class="search-history" v-if="!searchKeyword && searchHistory.length > 0">
+        <div class="section-header">
+          <span class="section-title">搜索历史</span>
+          <Button size="mini" type="default" @click="clearHistory">清空</Button>
+        </div>
+        <div class="history-tags">
+          <Tag 
+            v-for="(item, index) in searchHistory" 
+            :key="index"
+            size="medium"
+            @click="selectHistory(item)"
+          >
+            {{ item }}
+          </Tag>
+        </div>
+      </div>
+
+      <!-- 热门搜索 -->
+      <div class="hot-search" v-if="!searchKeyword">
+        <div class="section-title">热门搜索</div>
+        <div class="hot-tags">
+          <Tag 
+            v-for="(item, index) in hotSearches" 
+            :key="index"
+            size="medium"
+            type="primary"
+            @click="selectHotSearch(item)"
+          >
+            {{ item }}
+          </Tag>
+        </div>
+      </div>
+
+      <!-- 搜索结果 -->
+      <div class="search-results" v-if="searchKeyword && hasSearched">
+        <!-- 结果统计 -->
+        <div class="result-stats" v-if="totalResults > 0">
+          找到 <span class="stats-number">{{ totalResults }}</span> 条相关结果
+        </div>
+
+        <!-- 结果分类标签 -->
+        <div class="result-tabs" v-if="totalResults > 0">
+          <div 
+            v-for="category in resultCategories" 
+            :key="category.key"
+            class="result-tab"
+            :class="{ active: activeCategory === category.key }"
+            @click="selectCategory(category.key)"
+          >
+            {{ category.label }}
+            <span class="tab-count" v-if="category.count > 0">({{ category.count }})</span>
+          </div>
+        </div>
+
+        <!-- 搜索结果列表 -->
+        <div class="result-list" v-if="currentResults.length > 0">
+          <PullRefresh v-model="refreshing" @refresh="onRefresh">
+            <List
+              v-model:loading="loading"
+              :finished="finished"
+              finished-text="没有更多了"
+              @load="onLoad"
+            >
+              <div 
+                v-for="(item, index) in currentResults" 
+                :key="index"
+                class="result-item"
+                @click="viewDetail(item)"
+              >
+                <div class="item-header">
+                  <div class="item-type">
+                    <Icon :name="getTypeIcon(item.type)" size="16" :color="getTypeColor(item.type)" />
+                    <span>{{ getTypeLabel(item.type) }}</span>
+                  </div>
+                  <div class="item-status" v-if="item.status">
+                    <div class="status-badge" :class="getStatusClass(item.status)">
+                      {{ getStatusLabel(item.status) }}
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="item-content">
+                  <div class="item-title" v-html="highlightKeyword(item.title)"></div>
+                  <div class="item-subtitle" v-if="item.subtitle" v-html="highlightKeyword(item.subtitle)"></div>
+                  <div class="item-description" v-if="item.description" v-html="highlightKeyword(item.description)"></div>
+                </div>
+
+                <div class="item-meta" v-if="item.meta">
+                  <div class="meta-item" v-for="(meta, key) in item.meta" :key="key">
+                    <span class="meta-label">{{ key }}:</span>
+                    <span class="meta-value">{{ meta }}</span>
+                  </div>
+                </div>
+              </div>
+            </List>
+          </PullRefresh>
+        </div>
+
+        <!-- 无结果提示 -->
+        <div class="no-results" v-if="hasSearched && totalResults === 0">
+          <Empty description="未找到相关结果">
+            <div class="empty-actions">
+              <Button type="primary" size="small" @click="handleClear">
+                重新搜索
+              </Button>
+            </div>
+          </Empty>
+        </div>
+      </div>
+
+      <!-- 搜索建议 -->
+      <div class="search-suggestions" v-if="searchKeyword && !hasSearched && suggestions.length > 0">
+        <div class="section-title">搜索建议</div>
+        <div class="suggestion-list">
+          <div 
+            v-for="(suggestion, index) in suggestions" 
+            :key="index"
+            class="suggestion-item"
+            @click="selectSuggestion(suggestion)"
+          >
+            <Icon name="search" size="14" color="#c8c9cc" />
+            <span v-html="highlightKeyword(suggestion)"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { 
+  NavBar, Search, Button, Tag, Icon, PullRefresh, List, Empty,
+  showToast, showConfirmDialog 
+} from 'vant';
+
+const router = useRouter();
+
+// 响应式数据
+const searchKeyword = ref('');
+const searchHistory = ref([]);
+const hasSearched = ref(false);
+const loading = ref(false);
+const finished = ref(false);
+const refreshing = ref(false);
+const activeCategory = ref('all');
+const suggestions = ref([]);
+
+// 搜索结果
+const searchResults = reactive({
+  materials: [],
+  customers: [],
+  suppliers: [],
+  orders: [],
+  tasks: [],
+  locations: [],
+  boms: []
+});
+
+// 热门搜索
+const hotSearches = ref([
+  '304不锈钢', '客户A', '销售订单', '生产任务', 
+  '库位A-01', 'BOM清单', '采购订单', '物料清单'
+]);
+
+// 结果分类
+const resultCategories = ref([
+  { key: 'all', label: '全部', count: 0 },
+  { key: 'materials', label: '物料', count: 0 },
+  { key: 'customers', label: '客户', count: 0 },
+  { key: 'suppliers', label: '供应商', count: 0 },
+  { key: 'orders', label: '订单', count: 0 },
+  { key: 'tasks', label: '任务', count: 0 },
+  { key: 'locations', label: '库位', count: 0 },
+  { key: 'boms', label: 'BOM', count: 0 }
+]);
+
+// 计算属性
+const totalResults = computed(() => {
+  return Object.values(searchResults).reduce((total, results) => total + results.length, 0);
+});
+
+const currentResults = computed(() => {
+  if (activeCategory.value === 'all') {
+    return Object.values(searchResults).flat();
+  }
+  return searchResults[activeCategory.value] || [];
+});
+
+// 获取类型图标
+const getTypeIcon = (type) => {
+  const iconMap = {
+    'material': 'goods-collect-o',
+    'customer': 'friends-o',
+    'supplier': 'shop-o',
+    'order': 'notes-o',
+    'task': 'todo-list-o',
+    'location': 'location-o',
+    'bom': 'cluster-o'
+  };
+  return iconMap[type] || 'records';
+};
+
+// 获取类型颜色
+const getTypeColor = (type) => {
+  const colorMap = {
+    'material': '#5E7BF6',
+    'customer': '#2CCFB0',
+    'supplier': '#FF9F45',
+    'order': '#FF6B6B',
+    'task': '#A48BE0',
+    'location': '#FFC759',
+    'bom': '#FF8A80'
+  };
+  return colorMap[type] || '#c8c9cc';
+};
+
+// 获取类型标签
+const getTypeLabel = (type) => {
+  const labelMap = {
+    'material': '物料',
+    'customer': '客户',
+    'supplier': '供应商',
+    'order': '订单',
+    'task': '任务',
+    'location': '库位',
+    'bom': 'BOM'
+  };
+  return labelMap[type] || type;
+};
+
+// 获取状态样式
+const getStatusClass = (status) => {
+  const classMap = {
+    'active': 'active',
+    'inactive': 'inactive',
+    'pending': 'pending',
+    'completed': 'completed',
+    'cancelled': 'cancelled'
+  };
+  return classMap[status] || 'default';
+};
+
+// 获取状态标签
+const getStatusLabel = (status) => {
+  const labelMap = {
+    'active': '启用',
+    'inactive': '停用',
+    'pending': '待处理',
+    'completed': '已完成',
+    'cancelled': '已取消'
+  };
+  return labelMap[status] || status;
+};
+
+// 高亮关键词
+const highlightKeyword = (text) => {
+  if (!searchKeyword.value || !text) return text;
+  const regex = new RegExp(`(${searchKeyword.value})`, 'gi');
+  return text.replace(regex, '<span class="highlight">$1</span>');
+};
+
+// 执行搜索
+const performSearch = async (keyword) => {
+  if (!keyword.trim()) return;
+
+  hasSearched.value = true;
+  loading.value = true;
+
+  try {
+    // 模拟API调用
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // 模拟搜索结果
+    const mockResults = generateMockResults(keyword);
+    
+    // 更新搜索结果
+    Object.keys(searchResults).forEach(key => {
+      searchResults[key] = mockResults[key] || [];
+    });
+
+    // 更新分类计数
+    resultCategories.value.forEach(category => {
+      if (category.key === 'all') {
+        category.count = totalResults.value;
+      } else {
+        category.count = searchResults[category.key]?.length || 0;
+      }
+    });
+
+    // 添加到搜索历史
+    addToHistory(keyword);
+
+  } catch (error) {
+    console.error('搜索失败:', error);
+    showToast('搜索失败，请重试');
+  } finally {
+    loading.value = false;
+    finished.value = true;
+  }
+};
+
+// 生成模拟搜索结果
+const generateMockResults = (keyword) => {
+  const results = {
+    materials: [],
+    customers: [],
+    suppliers: [],
+    orders: [],
+    tasks: [],
+    locations: [],
+    boms: []
+  };
+
+  // 模拟物料搜索结果
+  if (keyword.includes('304') || keyword.includes('不锈钢') || keyword.includes('物料')) {
+    results.materials.push({
+      type: 'material',
+      title: '304不锈钢板',
+      subtitle: 'MAT-20241201-001',
+      description: '厚度2mm，规格1000x2000',
+      status: 'active',
+      meta: {
+        '库存': '1250 kg',
+        '单价': '¥25.50/kg'
+      }
+    });
+  }
+
+  // 模拟客户搜索结果
+  if (keyword.includes('客户') || keyword.includes('A')) {
+    results.customers.push({
+      type: 'customer',
+      title: '客户A公司',
+      subtitle: 'CUST-001',
+      description: '主要合作伙伴，信用等级AAA',
+      status: 'active',
+      meta: {
+        '联系人': '张经理',
+        '电话': '138****8888'
+      }
+    });
+  }
+
+  // 模拟订单搜索结果
+  if (keyword.includes('订单') || keyword.includes('SO')) {
+    results.orders.push({
+      type: 'order',
+      title: '销售订单SO-20241201-001',
+      subtitle: '客户A公司',
+      description: '304不锈钢板 x 100kg',
+      status: 'pending',
+      meta: {
+        '金额': '¥2,550.00',
+        '交期': '2024-12-15'
+      }
+    });
+  }
+
+  return results;
+};
+
+// 事件处理
+const handleSearch = () => {
+  if (!searchKeyword.value.trim()) {
+    showToast('请输入搜索关键词');
+    return;
+  }
+  performSearch(searchKeyword.value);
+};
+
+const handleClear = () => {
+  searchKeyword.value = '';
+  hasSearched.value = false;
+  activeCategory.value = 'all';
+  Object.keys(searchResults).forEach(key => {
+    searchResults[key] = [];
+  });
+};
+
+const handleFocus = () => {
+  // 获取搜索建议
+  if (searchKeyword.value) {
+    getSuggestions(searchKeyword.value);
+  }
+};
+
+const selectHistory = (item) => {
+  searchKeyword.value = item;
+  performSearch(item);
+};
+
+const selectHotSearch = (item) => {
+  searchKeyword.value = item;
+  performSearch(item);
+};
+
+const selectSuggestion = (suggestion) => {
+  searchKeyword.value = suggestion;
+  performSearch(suggestion);
+};
+
+const selectCategory = (category) => {
+  activeCategory.value = category;
+};
+
+const viewDetail = (item) => {
+  // 根据类型跳转到详情页
+  const routeMap = {
+    'material': `/baseData/materials/${item.id || 'detail'}`,
+    'customer': `/baseData/customers/${item.id || 'detail'}`,
+    'supplier': `/baseData/suppliers/${item.id || 'detail'}`,
+    'order': `/sales/orders/${item.id || 'detail'}`,
+    'task': `/production/tasks/${item.id || 'detail'}`,
+    'location': `/baseData/locations/${item.id || 'detail'}`,
+    'bom': `/baseData/boms/${item.id || 'detail'}`
+  };
+
+  const route = routeMap[item.type];
+  if (route) {
+    router.push(route);
+  } else {
+    showToast('详情页面开发中');
+  }
+};
+
+const onRefresh = () => {
+  refreshing.value = true;
+  performSearch(searchKeyword.value).finally(() => {
+    refreshing.value = false;
+  });
+};
+
+const onLoad = () => {
+  // 加载更多结果
+  loading.value = true;
+  setTimeout(() => {
+    loading.value = false;
+    finished.value = true;
+  }, 1000);
+};
+
+// 搜索建议
+const getSuggestions = (keyword) => {
+  // 模拟搜索建议
+  const allSuggestions = [
+    '304不锈钢板', '304不锈钢管', '客户A公司', '客户B公司',
+    '销售订单SO-001', '采购订单PO-001', '生产任务TASK-001',
+    '库位A-01-01', 'BOM清单BOM-001'
+  ];
+  
+  suggestions.value = allSuggestions.filter(item => 
+    item.toLowerCase().includes(keyword.toLowerCase())
+  ).slice(0, 5);
+};
+
+// 历史记录管理
+const addToHistory = (keyword) => {
+  const history = getSearchHistory();
+  const filtered = history.filter(item => item !== keyword);
+  filtered.unshift(keyword);
+  const limited = filtered.slice(0, 10);
+  
+  localStorage.setItem('global_search_history', JSON.stringify(limited));
+  searchHistory.value = limited;
+};
+
+const getSearchHistory = () => {
+  try {
+    const history = localStorage.getItem('global_search_history');
+    return history ? JSON.parse(history) : [];
+  } catch (error) {
+    return [];
+  }
+};
+
+const clearHistory = async () => {
+  try {
+    const result = await showConfirmDialog({
+      title: '确认清空',
+      message: '确定要清空搜索历史吗？'
+    });
+    
+    if (result === 'confirm') {
+      localStorage.removeItem('global_search_history');
+      searchHistory.value = [];
+      showToast('已清空搜索历史');
+    }
+  } catch (error) {
+    // 用户取消
+  }
+};
+
+// 监听搜索关键词变化
+watch(searchKeyword, (newVal) => {
+  if (newVal) {
+    getSuggestions(newVal);
+  } else {
+    suggestions.value = [];
+    hasSearched.value = false;
+  }
+});
+
+// 初始化
+onMounted(() => {
+  searchHistory.value = getSearchHistory();
+});
+</script>
+
+<style lang="scss" scoped>
+.global-search-page {
+  min-height: 100vh;
+  background-color: $background-color;
+}
+
+.search-container {
+  padding: 12px;
+}
+
+.search-header {
+  margin-bottom: 16px;
+
+  .search-action {
+    color: $primary-color;
+    font-size: 14px;
+    padding: 0 8px;
+  }
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-color;
+}
+
+.search-history,
+.hot-search {
+  margin-bottom: 20px;
+
+  .history-tags,
+  .hot-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .van-tag {
+      margin: 0;
+    }
+  }
+}
+
+.search-results {
+  .result-stats {
+    font-size: 14px;
+    color: $text-color-secondary;
+    margin-bottom: 12px;
+
+    .stats-number {
+      color: $primary-color;
+      font-weight: 600;
+    }
+  }
+
+  .result-tabs {
+    display: flex;
+    background: #fff;
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+
+    .result-tab {
+      flex-shrink: 0;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: $text-color-secondary;
+      border-radius: 6px;
+      transition: all 0.2s;
+      white-space: nowrap;
+
+      &.active {
+        background-color: $primary-color;
+        color: #fff;
+      }
+
+      .tab-count {
+        margin-left: 4px;
+      }
+    }
+  }
+
+  .result-list {
+    .result-item {
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+      .item-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+
+        .item-type {
+          display: flex;
+          align-items: center;
+          font-size: 12px;
+          color: $text-color-secondary;
+
+          span {
+            margin-left: 4px;
+          }
+        }
+
+        .status-badge {
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-size: 10px;
+          color: #fff;
+
+          &.active { background-color: #2CCFB0; }
+          &.inactive { background-color: #c8c9cc; }
+          &.pending { background-color: #FF9F45; }
+          &.completed { background-color: #5E7BF6; }
+          &.cancelled { background-color: #FF6B6B; }
+        }
+      }
+
+      .item-content {
+        margin-bottom: 8px;
+
+        .item-title {
+          font-size: 14px;
+          font-weight: 500;
+          color: $text-color;
+          margin-bottom: 4px;
+        }
+
+        .item-subtitle {
+          font-size: 12px;
+          color: $text-color-secondary;
+          margin-bottom: 4px;
+        }
+
+        .item-description {
+          font-size: 12px;
+          color: $text-color-secondary;
+        }
+      }
+
+      .item-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+
+        .meta-item {
+          font-size: 12px;
+
+          .meta-label {
+            color: $text-color-secondary;
+          }
+
+          .meta-value {
+            color: $text-color;
+            margin-left: 4px;
+          }
+        }
+      }
+    }
+  }
+}
+
+.search-suggestions {
+  .suggestion-list {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+
+    .suggestion-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid $border-color;
+      font-size: 14px;
+      color: $text-color;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      span {
+        margin-left: 8px;
+      }
+    }
+  }
+}
+
+.no-results {
+  padding: 60px 20px;
+
+  .empty-actions {
+    margin-top: 16px;
+  }
+}
+
+:deep(.highlight) {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+</style>

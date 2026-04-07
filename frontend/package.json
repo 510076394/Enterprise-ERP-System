@@ -1,0 +1,45 @@
+{
+  "name": "erp-mes-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "dev:alt": "vite --port 3000 || vite --port 3001 || vite --port 3002",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "@fortawesome/fontawesome-svg-core": "^6.7.2",
+    "@fortawesome/free-brands-svg-icons": "^6.7.2",
+    "@fortawesome/vue-fontawesome": "^3.0.8",
+    "@vue-office/docx": "^1.6.3",
+    "@vue-office/excel": "^1.7.14",
+    "@vue-office/pdf": "^2.0.10",
+    "@vueup/vue-quill": "^1.2.0",
+    "ant-design-vue": "^4.2.6",
+    "axios": "^1.6.2",
+    "chart.js": "^4.4.8",
+    "dayjs": "^1.11.10",
+    "dompurify": "^3.3.1",
+    "echarts": "^5.6.0",
+    "element-plus": "^2.4.2",
+    "exceljs": "^4.4.0",
+    "handlebars": "^4.7.8",
+    "html2pdf.js": "^0.14.0",
+    "lodash-es": "^4.17.21",
+    "pinia": "^2.1.7",
+    "vue": "^3.3.8",
+    "vue-i18n": "^11.1.11",
+    "vue-router": "^4.2.5",
+    "vue3-lottie": "^3.3.1"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@vitejs/plugin-vue": "^6.0.3",
+    "rollup-plugin-visualizer": "^6.0.5",
+    "sass": "^1.69.5",
+    "terser": "^5.43.1",
+    "vite": "^7.3.0"
+  }
+}

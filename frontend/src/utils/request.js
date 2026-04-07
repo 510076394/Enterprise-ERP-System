@@ -1,0 +1,151 @@
+/**
+ * request.js
+ * @description 前端界面组件文件
+  * @date 2025-08-27
+ * @version 1.0.0
+ */
+
+import axios from 'axios';
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
+import router from '@/router';
+
+// 创建axios实例
+const service = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api', // 从环境变量获取API基础URL，默认使用/api前缀
+  timeout: 15000, // 请求超时时间15秒
+  withCredentials: true // 允许发送Cookie
+});
+
+// 请求拦截器
+service.interceptors.request.use(
+  config => {
+    // 优先从Cookie获取token（由浏览器自动携带）
+    // 如果没有Cookie，则从localStorage获取（向后兼容）
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // 对于非GET请求，添加CSRF Token
+    if (config.method !== 'get' && config.method !== 'GET') {
+      const csrfToken = getCsrfTokenFromCookie();
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken;
+      }
+    }
+
+    return config;
+  },
+  error => {
+    console.error('请求错误:', error);
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * 从Cookie中获取CSRF Token
+ */
+function getCsrfTokenFromCookie() {
+  const name = '_csrf=';
+  const cookies = document.cookie.split(';');
+  for (let cookie of cookies) {
+    cookie = cookie.trim();
+    if (cookie.indexOf(name) === 0) {
+      return cookie.substring(name.length);
+    }
+  }
+  return null;
+}
+
+// 响应拦截器
+service.interceptors.response.use(
+  response => {
+    const res = response.data;
+
+    // 如果响应直接返回数据，则直接返回数据
+    return res;
+  },
+  async error => {
+    let message = '';
+
+    if (error.response) {
+      // 服务器返回了错误状态码
+      const { status, data } = error.response;
+
+      switch (status) {
+        case 400:
+          message = data.message || '请求参数错误';
+          break;
+        case 401:
+          // Token过期，尝试刷新
+          if (data.code === 'TOKEN_EXPIRED') {
+            try {
+              // 尝试刷新token
+              const refreshResponse = await axios.post('/api/auth/refresh', {}, {
+                withCredentials: true
+              });
+
+              if (refreshResponse.data.success) {
+                // 刷新成功，重试原请求
+                return service(error.config);
+              }
+            } catch (refreshError) {
+              // 刷新失败，跳转登录（避免在登录页循环）
+              message = '登录已过期，请重新登录';
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login';
+              }
+              break;
+            }
+          }
+
+          message = data.message || '未授权，请重新登录';
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+          }
+          break;
+        case 403:
+          if (data.code === 'INVALID_CSRF_TOKEN') {
+            message = 'CSRF令牌无效，页面将刷新';
+            // 刷新页面以获取新的CSRF令牌
+            setTimeout(() => window.location.reload(), 1000);
+          } else {
+            message = data.message || '拒绝访问';
+          }
+          break;
+        case 404:
+          message = '请求的资源不存在';
+          break;
+        case 429:
+          message = '请求过于频繁，请稍后再试';
+          break;
+        case 500:
+          message = data.message || '服务器内部错误';
+          break;
+        default:
+          message = `请求错误: ${status}`;
+      }
+    } else if (error.request) {
+      // 请求发出但没有收到响应
+      message = '服务器无响应，请检查网络连接';
+    } else {
+      // 请求设置触发的错误
+      message = error.message;
+    }
+
+    // 默认错误提示
+    ElMessage({
+      message: message,
+      type: 'error',
+      duration: 5000
+    });
+
+    return Promise.reject(error);
+  }
+);
+
+export default service; 
