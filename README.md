@@ -42,7 +42,12 @@
 - **Node.js** >= 18.x （用于前端和后端服务）
 - **MySQL** >= 8.0.x （必须，以支持完善的窗口函数及排他锁特性）
 
-### 1️⃣ 环境及数据库初始化
+### ☁️ 云端一键极速部署 (One-Click Cloud Deploy)
+无需配置本地环境，直接点击下方按钮，由 Railway 根据本项目自带的底层配置自动在远端拉起 Node.js 后台并挂载 MySQL 8.0 数据库。
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/new?template=https%3A%2F%2Fgithub.com%2F510076394%2FEnterprise-ERP-System&plugins=mysql)
+
+### 1️⃣ 本地环境及数据库初始化
 1. 克隆代码：
    ```bash
    git clone https://github.com/510076394/Enterprise-ERP-System.git
