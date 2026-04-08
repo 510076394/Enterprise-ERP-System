@@ -1,4 +1,4 @@
-﻿/**
+/**
  * equipmentController.js
  * @description 控制器文件
  * @date 2025-08-27
@@ -9,7 +9,7 @@ const { ResponseHandler } = require('../../../utils/responseHandler');
 const { logger } = require('../../../utils/logger');
 const { validateRequiredFields, validateEnum } = require('../../../utils/validationHelper');
 
-const { pool } = require('../../../database');
+const { pool } = require('../../../config/db');
 const { ErrorFactory } = require('../../../middleware/unifiedErrorHandler');
 
 /**
@@ -356,8 +356,26 @@ exports.updateEquipmentStatus = async (req, res) => {
       return ResponseHandler.error(res, '设备不存在', 'NOT_FOUND', 404);
     }
 
+    // ✅ 安全修复：添加状态白名单校验，防止任意状态值注入
+    const VALID_EQUIPMENT_STATUSES = ['normal', 'maintenance', 'repair', 'scrapped', 'idle'];
+    if (!VALID_EQUIPMENT_STATUSES.includes(status)) {
+      return ResponseHandler.error(
+        res,
+        `无效的设备状态: "${status}"，允许的状态: ${VALID_EQUIPMENT_STATUSES.join(', ')}`,
+        'BAD_REQUEST',
+        400
+      );
+    }
+
     // 更新设备状态
-    await pool.query('UPDATE equipment SET status = ? WHERE id = ?', [status, id]);
+    const [updateResult] = await pool.query(
+      'UPDATE equipment SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [status, id]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      return ResponseHandler.error(res, '状态更新失败，设备可能已被删除', 'NOT_FOUND', 404);
+    }
 
     ResponseHandler.success(res, null, '设备状态更新成功');
   } catch (error) {

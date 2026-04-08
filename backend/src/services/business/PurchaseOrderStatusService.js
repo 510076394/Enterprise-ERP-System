@@ -31,9 +31,11 @@ class PurchaseOrderStatusService {
         `[PurchaseOrderStatusService] 更新收货数量：订单ID=${orderId}, 物料ID=${materialId}, 收货数量=${receivedQuantity}`
       );
 
-      // ✅ 添加: 检查收货数量是否超过订单数量
+      // ✅ 安全修复: 使用 FOR UPDATE 行级锁防止并发收货时校验被绕过
+      // 场景: 两个收货请求同时读取 received_quantity 后计算是否超量，
+      //        无锁情况下两个请求各自读到相同旧值，均通过校验导致超量收货
       const [orderItem] = await client.execute(
-        'SELECT quantity, received_quantity FROM purchase_order_items WHERE order_id = ? AND material_id = ?',
+        'SELECT quantity, received_quantity FROM purchase_order_items WHERE order_id = ? AND material_id = ? FOR UPDATE',
         [orderId, materialId]
       );
 

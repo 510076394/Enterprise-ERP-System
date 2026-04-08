@@ -212,28 +212,23 @@ class CostLedgerService {
   static async getCostTrend(filters = {}) {
     try {
       const period = filters.period || 'month';
-      const count = parseInt(filters.count) || 12;
+      // ✅ 安全修复：强制整数化 + 极值限制，防止注入
+      const count = Math.max(1, Math.min(365, parseInt(filters.count) || 12));
 
-      let dateFormat = '';
-      let interval = '';
+      // ✅ 安全修复：严格白名单控制 dateFormat 和 interval 单位
+      // 不再使用用户输入直接拼接 SQL
+      const PERIOD_CONFIG = {
+        day:   { dateFormat: '%Y-%m-%d', intervalUnit: 'DAY' },
+        week:  { dateFormat: '%Y-W%V',   intervalUnit: 'WEEK' },
+        month: { dateFormat: '%Y-%m',    intervalUnit: 'MONTH' },
+      };
+      const config = PERIOD_CONFIG[period] || PERIOD_CONFIG.month;
 
-      switch (period) {
-        case 'day':
-          dateFormat = '%Y-%m-%d';
-          interval = `${count} DAY`;
-          break;
-        case 'week':
-          dateFormat = '%Y-W%V';
-          interval = `${count} WEEK`;
-          break;
-        default: // month
-          dateFormat = '%Y-%m';
-          interval = `${count} MONTH`;
-      }
-
+      // ✅ 安全修复：dateFormat 来自白名单常量，intervalUnit 也来自白名单
+      // count 通过参数绑定传入，彻底消除拼接注入风险
       const sql = `
                 SELECT 
-                    DATE_FORMAT(pt.updated_at, '${dateFormat}') as period,
+                    DATE_FORMAT(pt.updated_at, '${config.dateFormat}') as period,
                     COUNT(pt.id) as task_count,
                     COALESCE(SUM(pt.quantity), 0) as total_quantity,
                     COALESCE(SUM(pt.material_cost), 0) as material_cost,
@@ -242,12 +237,12 @@ class CostLedgerService {
                     COALESCE(SUM(pt.actual_cost), 0) as total_cost
                 FROM production_tasks pt
                 WHERE pt.status = 'completed'
-                  AND pt.updated_at >= DATE_SUB(CURDATE(), INTERVAL ${interval})
-                GROUP BY DATE_FORMAT(pt.updated_at, '${dateFormat}')
+                  AND pt.updated_at >= DATE_SUB(CURDATE(), INTERVAL ? ${config.intervalUnit})
+                GROUP BY DATE_FORMAT(pt.updated_at, '${config.dateFormat}')
                 ORDER BY period ASC
             `;
 
-      const [rows] = await db.pool.execute(sql);
+      const [rows] = await db.pool.execute(sql, [count]);
       return rows;
     } catch (error) {
       logger.error('[CostLedger] 获取成本趋势失败:', error);

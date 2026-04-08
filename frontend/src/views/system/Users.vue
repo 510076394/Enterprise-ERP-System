@@ -505,38 +505,9 @@ const loadUserDataForDialog = async (row, displayTitle) => {
     // 确保部门ID是数字类型
     userForm.department_id = user.department_id ? Number(user.department_id) : null;
     // 处理角色数据
-    if (user.roles) {
-      // 如果是角色对象数组
-      if (Array.isArray(user.roles) && user.roles.length > 0 && typeof user.roles[0] === 'object') {
-        userForm.roleIds = user.roles.map(role => Number(role.id));
-      } 
-      // 如果是角色ID数组
-      else if (Array.isArray(user.roles)) {
-        userForm.roleIds = user.roles.map(id => Number(id));
-      }
-      // 如果是逗号分隔的字符串
-      else if (typeof user.roles === 'string') {
-        userForm.roleIds = user.roles.split(',').map(id => Number(id.trim()));
-      }
-    } 
-    // 如果直接提供roleIds字段
-    else if (user.roleIds) {
-      if (Array.isArray(user.roleIds)) {
-        userForm.roleIds = user.roleIds.map(id => Number(id));
-      } else if (typeof user.roleIds === 'string') {
-        userForm.roleIds = user.roleIds.split(',').map(id => Number(id.trim()));
-      }
-    } 
-    // 如果只有单个角色或角色ID
-    else if (user.role) {
-      if (typeof user.role === 'object' && user.role.id) {
-        userForm.roleIds = [Number(user.role.id)];
-      } else {
-        userForm.roleIds = [Number(user.role)];
-      }
-    } 
-    // 如果什么都没有
-    else {
+    if (user.roles && Array.isArray(user.roles)) {
+      userForm.roleIds = user.roles.map(role => Number(role.id || role));
+    } else {
       userForm.roleIds = [];
     }
     

@@ -1,6 +1,8 @@
 /**
  * AuditLogService.js
- * @description 记录系统所有高风险修改动作的“操作黑匣子”。凡走过必留痕。
+ * @description 自动拦截器使用的审计日志写入服务
+ * ✅ 重构: 统一写入 audit_logs 表，与 AuditService 使用同一张表
+ * 消除 sys_audit_logs / audit_logs 双表冗余
  */
 
 const db = require('../../config/db');
@@ -8,16 +10,14 @@ const { logger } = require('../../utils/logger');
 
 class AuditLogService {
   /**
-   * 记录审计日志
+   * 记录审计日志（统一写入 audit_logs 表）
    * @param {Object} params
    * @param {string} params.operator_id - 操作员ID
    * @param {string} params.operator_name - 操作员名称
-   * @param {string} params.action - 操作类型 (CREATE/UPDATE/DELETE/APPROVE)
-   * @param {string} params.module - 模块 (sales_order, purchase_order 等)
+   * @param {string} params.action - 操作类型 (CREATE/UPDATE/DELETE)
+   * @param {string} params.module - 模块名称
    * @param {string} params.target_table - 修改的底层表名
    * @param {string} params.target_id - 修改的主键ID
-   * @param {string} params.target_no - 业务编号
-   * @param {Object} params.old_payload - 原本的数据JSON
    * @param {Object} params.new_payload - 新修改的数据JSON
    * @param {string} params.ip_address - 操作IP
    * @param {string} params.user_agent - 终端浏览器信息
@@ -28,24 +28,20 @@ class AuditLogService {
       const conn = connection || (await db.pool.getConnection());
       try {
         await conn.execute(
-          `INSERT INTO sys_audit_logs (
-            operator_id, operator_name, action, module, target_table, 
-            target_id, target_no, old_payload, new_payload, 
-            ip_address, user_agent, remarks, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+          `INSERT INTO audit_logs (
+            user_id, username, module, action, entity_type, entity_id,
+            new_value, ip_address, user_agent, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
           [
-            params.operator_id || 'SYSTEM',
+            params.operator_id || null,
             params.operator_name || 'System Auto',
-            params.action || 'UNKNOWN',
             params.module || 'UNKNOWN',
-            params.target_table || 'UNKNOWN',
+            params.action || 'UNKNOWN',
+            params.target_table || null,
             String(params.target_id || ''),
-            params.target_no || '',
-            params.old_payload ? JSON.stringify(params.old_payload) : null,
             params.new_payload ? JSON.stringify(params.new_payload) : null,
             params.ip_address || '',
             params.user_agent || '',
-            params.remarks || ''
           ]
         );
       } finally {

@@ -4,6 +4,7 @@
  */
 
 const { logger } = require('./logger');
+const PermissionService = require('../services/PermissionService');
 
 const SENSITIVE_FIELDS = [
   // 基础字段
@@ -55,30 +56,32 @@ function desensitizeData(data, hasPermission) {
 }
 
 /**
- * 权限判断：检查是否有配置在 system.roles 或用户 permissions 里的 finance 权限
- * @param {Object} user req.user对象
+ * 权限判断：通过统一的 PermissionService 检查用户是否拥有财务数据查看权限
+ * ✅ 修复: 移除硬编码的 username/roles 判断，统一走权限体系
+ * @param {Object} user req.user对象 (JWT解码后仅含 id, username)
+ * @returns {Promise<boolean>}
  */
-function hasFinancePermission(user) {
-  // 检查 user 对象是否有相关权限标识
-  if (!user) return false;
-  
-  // 对于超级管理员或特定白名单用户，可增加硬编码用户名检查（例如 'admin'）
-  if (user.username === 'admin') return true;
+async function hasFinancePermission(user) {
+  if (!user || !user.id) return false;
 
-  // 如果含有 finance 相关 role，则放行
-  if (user.roles && (user.roles.includes('FINANCE') || user.roles.includes('ADMIN') || user.roles.includes('财务'))) {
-     return true;
+  try {
+    const permissions = await PermissionService.getUserPermissions(user.id);
+    // 管理员拥有 * 通配符，自动通过
+    if (permissions.includes('*')) return true;
+    // 检查财务相关权限标识
+    return permissions.some(p => 
+      p === 'finance:view' || 
+      p === 'finance:view_cost' || 
+      p.startsWith('finance:')
+    );
+  } catch (error) {
+    logger.error('[脱敏] 权限检查失败:', error.message);
+    return false;
   }
-  
-  // 检查具体权限词
-  if (user.permissions && (user.permissions.includes('finance:view') || user.permissions.includes('finance:view_cost'))) {
-     return true;
-  }
-  
-  return false;
 }
 
 module.exports = {
   desensitizeData,
   hasFinancePermission
 };
+

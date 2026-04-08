@@ -183,17 +183,17 @@ class PurchaseOrderService {
       return;
     }
 
-    // 使用数据库实际列名：price, total (不是 unit_price, amount)
-    const insertItemsQuery = `
-      INSERT INTO purchase_order_items 
-      (order_id, material_id, material_code, material_name, specification, unit, unit_id, price, quantity, total, tax_rate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
     const processedItems = await this.processOrderItems(connection, items);
 
+    if (processedItems.length === 0) {
+      return;
+    }
+
+    // ✅ 性能优化: 批量 INSERT 替代逐条插入，N 次 SQL → 1 次
+    const placeholders = processedItems.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+    const values = [];
     for (const item of processedItems) {
-      await connection.query(insertItemsQuery, [
+      values.push(
         orderId,
         item.material_id,
         item.material_code,
@@ -204,9 +204,17 @@ class PurchaseOrderService {
         item.price,
         item.quantity,
         item.amount, // amount 对应 total 列
-        item.tax_rate,
-      ]);
+        item.tax_rate
+      );
     }
+
+    // 使用数据库实际列名：price, total (不是 unit_price, amount)
+    await connection.query(
+      `INSERT INTO purchase_order_items 
+      (order_id, material_id, material_code, material_name, specification, unit, unit_id, price, quantity, total, tax_rate)
+      VALUES ${placeholders}`,
+      values
+    );
   }
 
   /**

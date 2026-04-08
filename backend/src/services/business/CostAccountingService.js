@@ -8,6 +8,7 @@
 const { logger } = require('../../utils/logger');
 const db = require('../../config/db');
 const BusinessError = require('../../utils/BusinessError');
+const globalConfigManager = require('../../config/globalConfig');
 
 /**
  * 成本核算服务
@@ -729,6 +730,10 @@ class CostAccountingService {
     const details = [];
     const costVariances = [];
 
+    // ✅ 性能优化: 批量预取所有物料的标准成本，消除 N+1 查询
+    const uniqueMaterialIds = [...new Set(materialIssues.map(i => i.material_id))];
+    const standardCostMap = await this.getBatchStandardMaterialCosts(connection, uniqueMaterialIds);
+
     for (const issue of materialIssues) {
       // 根据成本计算方法获取更准确的单位成本
       let actualUnitCost = issue.unit_cost || 0;
@@ -743,23 +748,23 @@ class CostAccountingService {
           );
         } catch (error) {
           logger.warn(`获取物料 ${issue.material_id} 的实际成本失败，回溯至标准成本:`, error.message);
-          try {
-            actualUnitCost = await this.getStandardMaterialCost(connection, issue.material_id);
-          } catch (stdError) {
-             // SSOT 原则：若标准成本也未准备妥当，严禁使用 0 兜底，刚性拦截并提供前端修正路径
+          // ✅ 使用预取的标准成本映射，不再单独查询
+          const stdCost = standardCostMap[issue.material_id];
+          if (stdCost === undefined) {
              throw new BusinessError(
                `物料 ${issue.material_code} 的出库计价获取失败：既无实际成本记录也未维护标准成本。请先前往物料库完善基础财务定价，确保出库账务精准无误。`,
                { route: '/basedata/materials', buttonText: '前往物料字典修复' }
              );
           }
+          actualUnitCost = stdCost;
         }
       }
 
       const itemCost = issue.quantity * actualUnitCost;
       totalCost += itemCost;
 
-      // 计算成本差异（实际成本 vs 标准成本）
-      const standardUnitCost = await this.getStandardMaterialCost(connection, issue.material_id);
+      // ✅ 使用预取的标准成本映射，不再单独查询
+      const standardUnitCost = standardCostMap[issue.material_id] || 0;
       const costVariance = (actualUnitCost - standardUnitCost) * issue.quantity;
 
       if (Math.abs(costVariance) > 0.01) {
@@ -1293,6 +1298,56 @@ class CostAccountingService {
       // 遇到纯粹查数据库失败才退回 0
       return 0;
     }
+  }
+
+  /**
+   * 批量获取多个物料的标准成本（消除 N+1 查询）
+   * @param {Object} connection 数据库连接
+   * @param {number[]} materialIds 物料ID数组
+   * @returns {Object} materialId → standardPrice 的映射
+   */
+  static async getBatchStandardMaterialCosts(connection, materialIds) {
+    const costMap = {};
+    if (!materialIds || materialIds.length === 0) return costMap;
+
+    try {
+      // 使用子查询取每个物料最新生效的标准成本
+      const placeholders = materialIds.map(() => '?').join(',');
+      const [rows] = await connection.execute(
+        `SELECT sc.material_id, sc.standard_price
+         FROM standard_costs sc
+         INNER JOIN (
+           SELECT material_id, MAX(effective_date) as max_date
+           FROM standard_costs
+           WHERE material_id IN (${placeholders})
+             AND status = 'active'
+             AND (expiry_date IS NULL OR expiry_date > CURDATE())
+           GROUP BY material_id
+         ) latest ON sc.material_id = latest.material_id AND sc.effective_date = latest.max_date
+         WHERE sc.status = 'active'
+           AND (sc.expiry_date IS NULL OR sc.expiry_date > CURDATE())`,
+        materialIds
+      );
+
+      for (const row of rows) {
+        costMap[row.material_id] = parseFloat(row.standard_price) || 0;
+      }
+
+      // 对未找到标准成本的物料赋值 0 并记录警告
+      for (const id of materialIds) {
+        if (costMap[id] === undefined) {
+          costMap[id] = 0;
+          logger.warn(`物料 ID:${id} 未配置生效版本的标准成本。下发成本: 0`);
+        }
+      }
+    } catch (error) {
+      logger.error('批量获取标准成本失败:', error.message);
+      for (const id of materialIds) {
+        costMap[id] = 0;
+      }
+    }
+
+    return costMap;
   }
 
   /**

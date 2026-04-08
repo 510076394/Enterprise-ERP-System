@@ -6,7 +6,7 @@ const express = require('express');
 const router = express.Router();
 const notificationController = require('../../controllers/system/notificationController');
 const { authenticateToken } = require('../../middleware/auth');
-const { requireAdmin } = require('../../middleware/requirePermission');
+const { requirePermission } = require('../../middleware/requirePermission');
 
 // 所有路由都需要认证
 router.use(authenticateToken);
@@ -26,10 +26,10 @@ router.put('/mark-all-read', notificationController.markAllAsRead);
 // 删除通知
 router.delete('/:id', notificationController.deleteNotification);
 
-// 创建通知（仅管理员可调用）
-router.post('/', requireAdmin, notificationController.createNotification);
+// 创建通知
+router.post('/', requirePermission('system:notifications:create'), notificationController.createNotification);
 
-// 批量创建通知（仅管理员可调用）
-router.post('/batch', requireAdmin, notificationController.createBatchNotifications);
+// 批量创建通知
+router.post('/batch', requirePermission('system:notifications:create'), notificationController.createBatchNotifications);
 
 module.exports = router;

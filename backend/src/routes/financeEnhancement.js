@@ -161,7 +161,9 @@ router.get('/automation/history', requirePermission('finance:automation:view'), 
       let requestData = {};
       try {
         requestData = JSON.parse(row.request_data || '{}');
-      } catch (e) { }
+      } catch (e) {
+        logger.warn(`[财务历史] 无法解析 request_data (id=${row.id}): ${e.message}`);
+      }
 
       // 确定执行期间显示
       let periodDisplay = row.operation;
@@ -485,17 +487,8 @@ router.get('/reports/dashboard', requirePermission('finance:reports:view'), asyn
  * @desc 初始化财务增强功能相关表
  * @access Private (仅超级管理员)
  */
-router.post('/system/initialize', async (req, res) => {
+router.post('/system/initialize', requirePermission('system:initialize'), async (req, res) => {
   try {
-    const PermissionService = require('../services/PermissionService');
-    const isAdmin = await PermissionService.isAdmin(req.user.id);
-
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: '权限不足，仅超级管理员可执行此操作',
-      });
-    }
 
     const PeriodEndService = require('../services/periodEndService');
     const CostAccountingService = require('../services/costAccountingService');

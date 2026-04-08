@@ -45,23 +45,6 @@ class JWTUtils {
  */
 class PermissionUtils {
   /**
-   * 获取用户权限列表
-   * 委托给统一的 PermissionService
-   * @param {number} userId - 用户ID
-   * @param {boolean} forceRefresh - 是否强制刷新缓存
-   * @returns {Promise<Array>} 权限列表
-   */
-  static async getUserPermissions(userId, forceRefresh = false) {
-    try {
-      const PermissionService = require('../services/PermissionService');
-      return await PermissionService.getUserPermissions(userId, forceRefresh);
-    } catch (error) {
-      logger.error('获取用户权限失败:', error);
-      return [];
-    }
-  }
-
-  /**
    * 检查用户是否有指定权限
    * @param {Array} userPermissions - 用户权限列表
    * @param {string} requiredPermission - 需要的权限

@@ -5,6 +5,7 @@
  */
 
 const { logger } = require('../utils/logger');
+const PermissionService = require('../services/PermissionService');
 const { PermissionUtils } = require('../utils/authUtils');
 
 /**
@@ -30,7 +31,7 @@ function requirePermission(permissions, mode = 'any') {
       // 所有用户都需要从数据库获取权限,由PermissionService统一判断
 
       // 2. 获取用户权限（包含管理员检查）
-      const userPermissions = await PermissionUtils.getUserPermissions(req.user.id);
+      const userPermissions = await PermissionService.getUserPermissions(req.user.id);
 
       // 3. 检查权限（管理员会有 '*' 通配符，自动通过所有检查）
       const permArray = Array.isArray(permissions) ? permissions : [permissions];
@@ -70,14 +71,6 @@ function requirePermission(permissions, mode = 'any') {
   };
 }
 
-/**
- * 管理员权限检查（快捷方式）
- */
-function requireAdmin(req, res, next) {
-  return requirePermission('admin')(req, res, next);
-}
-
 module.exports = {
   requirePermission,
-  requireAdmin,
 };

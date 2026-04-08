@@ -8,50 +8,6 @@ const { logger } = require('../utils/logger');
 
 class SalesDao {
   // ==========================================
-  // 用户查询 (原遗留给销售/客户模块的方法)
-  // ==========================================
-  static async getUser(username) {
-    const [rows] = await pool.execute('SELECT * FROM users WHERE username = ?', [username]);
-    return rows[0];
-  }
-
-  static async getUserById(id) {
-    const [rows] = await pool.execute(
-      `SELECT u.*, d.name as department_name
-       FROM users u
-       LEFT JOIN departments d ON u.department_id = d.id
-       WHERE u.id = ?`,
-      [id]
-    );
-    return rows[0];
-  }
-
-  static async updateUser(id, userData) {
-    // 动态构建 UPDATE 语句
-    const updateFields = [];
-    const updateValues = [];
-
-    if (userData.name !== undefined) { updateFields.push('real_name = ?'); updateValues.push(userData.name); }
-    if (userData.email !== undefined) { updateFields.push('email = ?'); updateValues.push(userData.email); }
-    if (userData.phone !== undefined) { updateFields.push('phone = ?'); updateValues.push(userData.phone); }
-    if (userData.department_id !== undefined) { updateFields.push('department_id = ?'); updateValues.push(userData.department_id); }
-    if (userData.status !== undefined) { updateFields.push('status = ?'); updateValues.push(userData.status); }
-    if (userData.avatar !== undefined) { updateFields.push('avatar = ?'); updateValues.push(userData.avatar); }
-
-    if (updateFields.length === 0) return await this.getUserById(id);
-
-    updateValues.push(id);
-    const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
-    await pool.execute(sql, updateValues);
-    return await this.getUserById(id);
-  }
-
-  static async getAllUsers() {
-    const [rows] = await pool.execute('SELECT id, username, role, created_at FROM users');
-    return rows;
-  }
-
-  // ==========================================
   // 客户查询 (Customers)
   // ==========================================
   static async getCustomers() {

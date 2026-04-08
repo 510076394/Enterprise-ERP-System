@@ -101,9 +101,11 @@ class BaseService {
       let total = 0;
       if (includePagination) {
         const countSql = `SELECT COUNT(*) as total FROM ${this.tableName} ${whereClause}`;
+        // ✅ 修复: LIMIT/OFFSET 是直接拼入 SQL 的，不在 params 中
+        // 所以 COUNT 查询应使用完整的 params，不需要 slice
         const [countResult] = await connection.execute(
           countSql,
-          params.slice(0, params.length - 2)
+          params
         );
         total = countResult[0].total;
       }

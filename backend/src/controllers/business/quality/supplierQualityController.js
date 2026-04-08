@@ -173,109 +173,107 @@ const supplierQualityController = {
                 return ResponseHandler.success(res, { updated: 0 }, '本月暂无采购数据');
             }
 
+            // ✅ 性能优化: 批量查询所有供应商数据，消除 N+1
+            // 1. 批量来料质量统计
+            const qiBatch = await db.query(
+                `
+        SELECT
+          COALESCE(qi.supplier_id, po.supplier_id) as supplier_id,
+          COUNT(*) as total_lots,
+          SUM(CASE WHEN qi.status IN ('passed','pass','completed') THEN 1 ELSE 0 END) as accepted_lots,
+          COALESCE(SUM(qi.quantity), 0) as total_qty,
+          COALESCE(SUM(qi.unqualified_quantity), 0) as defect_qty
+        FROM quality_inspections qi
+        LEFT JOIN purchase_orders po ON qi.reference_no = po.order_no
+        WHERE qi.inspection_type = 'incoming'
+          AND COALESCE(qi.supplier_id, po.supplier_id) IN (${supplierIds.map(() => '?').join(',')})
+          AND qi.created_at BETWEEN ? AND ?
+        GROUP BY COALESCE(qi.supplier_id, po.supplier_id)
+      `,
+                [...supplierIds, startDate, endDate]
+            );
+            const qiMap = {};
+            (qiBatch.rows || []).forEach(r => { qiMap[r.supplier_id] = r; });
+
+            // 2. 批量交付统计
+            const deliveryBatch = await db.query(
+                `
+        SELECT
+          supplier_id,
+          COUNT(*) as total_deliveries,
+          SUM(CASE WHEN status IN ('completed','received','approved') THEN 1 ELSE 0 END) as on_time_deliveries
+        FROM purchase_orders
+        WHERE supplier_id IN (${supplierIds.map(() => '?').join(',')})
+          AND order_date BETWEEN ? AND ?
+        GROUP BY supplier_id
+      `,
+                [...supplierIds, startDate, endDate]
+            );
+            const deliveryMap = {};
+            (deliveryBatch.rows || []).forEach(r => { deliveryMap[r.supplier_id] = r; });
+
+            // 3. 批量 8D 响应统计
+            const eightDBatch = await db.query(
+                `
+        SELECT
+          supplier_id,
+          COUNT(*) as total_8d,
+          SUM(CASE WHEN status = 'closed' AND DATEDIFF(updated_at, created_at) <= 30 THEN 1 ELSE 0 END) as closed_on_time,
+          AVG(CASE WHEN status = 'closed' THEN DATEDIFF(updated_at, created_at) ELSE NULL END) as avg_days
+        FROM eight_d_reports
+        WHERE supplier_id IN (${supplierIds.map(() => '?').join(',')})
+          AND created_at BETWEEN ? AND ?
+        GROUP BY supplier_id
+      `,
+                [...supplierIds, startDate, endDate]
+            );
+            const eightDMap = {};
+            (eightDBatch.rows || []).forEach(r => { eightDMap[r.supplier_id] = r; });
+
             let updated = 0;
 
+            // 4. 在内存中计算每个供应商的评分
             for (const sid of supplierIds) {
-                // 1. 来料质量统计
-                //    优先从 quality_inspections 获取（如果有 supplier_id）
-                //    否则从 purchase_orders 中统计到货批次
+                // 质量数据
+                const qi = qiMap[sid];
                 let totalLots = 0, acceptedLots = 0, totalQty = 0, defectQty = 0;
-
-                const qiResult = await db.query(
-                    `
-          SELECT
-            COUNT(*) as total_lots,
-            SUM(CASE WHEN qi.status IN ('passed','pass','completed') THEN 1 ELSE 0 END) as accepted_lots,
-            SUM(CASE WHEN qi.status = 'failed' THEN 1 ELSE 0 END) as rejected_lots,
-            COALESCE(SUM(qi.quantity), 0) as total_qty,
-            COALESCE(SUM(qi.unqualified_quantity), 0) as defect_qty
-          FROM quality_inspections qi
-          LEFT JOIN purchase_orders po ON qi.reference_no = po.order_no
-          WHERE qi.inspection_type = 'incoming'
-            AND (qi.supplier_id = ? OR po.supplier_id = ?)
-            AND qi.created_at BETWEEN ? AND ?
-        `,
-                    [sid, sid, startDate, endDate]
-                );
-
-                const qi = qiResult.rows[0];
-                if (parseInt(qi.total_lots) > 0) {
-                    // 有直接关联的检验记录
+                if (qi && parseInt(qi.total_lots) > 0) {
                     totalLots = parseInt(qi.total_lots);
                     acceptedLots = parseInt(qi.accepted_lots) || 0;
                     totalQty = parseFloat(qi.total_qty) || 0;
                     defectQty = parseFloat(qi.defect_qty) || 0;
                 } else {
-                    // 回退：从采购订单统计（每个完成的 PO 算一个合格批次）
-                    const poResult = await db.query(
-                        `
-            SELECT
-              COUNT(*) as total_lots,
-              SUM(CASE WHEN status IN ('completed','received','approved') THEN 1 ELSE 0 END) as accepted_lots,
-              COALESCE(SUM(total_amount), 0) as total_qty
-            FROM purchase_orders
-            WHERE supplier_id = ?
-              AND order_date BETWEEN ? AND ?
-          `,
-                        [sid, startDate, endDate]
-                    );
-                    const po = poResult.rows[0];
-                    totalLots = parseInt(po.total_lots) || 0;
-                    acceptedLots = parseInt(po.accepted_lots) || 0;
-                    totalQty = parseFloat(po.total_qty) || 0;
-                    defectQty = 0; // 无不良数据来源
+                    // 回退：从交付数据中估算
+                    const d = deliveryMap[sid];
+                    if (d) {
+                        totalLots = parseInt(d.total_deliveries) || 0;
+                        acceptedLots = parseInt(d.on_time_deliveries) || 0;
+                    }
                 }
 
                 const ppm = totalQty > 0 ? (defectQty / totalQty) * 1000000 : 0;
                 const lotAcceptRate = totalLots > 0 ? (acceptedLots / totalLots) * 100 : 100;
 
-                // 2. 交付统计
-                const deliveryResult = await db.query(
-                    `
-          SELECT
-            COUNT(*) as total_deliveries,
-            SUM(CASE WHEN status IN ('completed','received','approved') AND expected_delivery_date >= order_date THEN 1
-                     WHEN status IN ('completed','received','approved') THEN 1
-                     ELSE 0 END) as on_time_deliveries
-          FROM purchase_orders
-          WHERE supplier_id = ?
-            AND order_date BETWEEN ? AND ?
-        `,
-                    [sid, startDate, endDate]
-                );
-
-                const d = deliveryResult.rows[0];
+                // 交付数据
+                const d = deliveryMap[sid] || {};
                 const totalDeliveries = parseInt(d.total_deliveries) || 0;
                 const onTimeDeliveries = parseInt(d.on_time_deliveries) || 0;
                 const deliveryRate = totalDeliveries > 0 ? (onTimeDeliveries / totalDeliveries) * 100 : 100;
 
-                // 3. 8D 响应时效
-                const eightDResult = await db.query(
-                    `
-          SELECT
-            COUNT(*) as total_8d,
-            SUM(CASE WHEN status = 'closed' AND DATEDIFF(updated_at, created_at) <= 30 THEN 1 ELSE 0 END) as closed_on_time,
-            AVG(CASE WHEN status = 'closed' THEN DATEDIFF(updated_at, created_at) ELSE NULL END) as avg_days
-          FROM eight_d_reports
-          WHERE supplier_id = ?
-            AND created_at BETWEEN ? AND ?
-        `,
-                    [sid, startDate, endDate]
-                );
-
-                const e = eightDResult.rows[0];
+                // 8D 数据
+                const e = eightDMap[sid] || {};
                 const total8d = parseInt(e.total_8d) || 0;
                 const closed8dOnTime = parseInt(e.closed_on_time) || 0;
                 const avg8dDays = parseFloat(e.avg_days) || 0;
 
-                // 4. 评分
+                // 评分
                 const qualityScore = Math.min(lotAcceptRate, 100);
                 const deliveryScore = Math.min(deliveryRate, 100);
                 const responseScore = total8d > 0 ? Math.min((closed8dOnTime / total8d) * 100, 100) : 100;
                 const totalScore = qualityScore * 0.6 + deliveryScore * 0.25 + responseScore * 0.15;
                 const grade = calculateGrade(totalScore);
 
-                // 5. 写入或更新计分卡
+                // 写入或更新计分卡
                 await db.query(
                     `
           INSERT INTO supplier_quality_scores

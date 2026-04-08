@@ -55,7 +55,7 @@ class SalesOrderStatusService {
         INNER JOIN sales_outbound_items sobi ON soi.material_id = sobi.product_id
         INNER JOIN sales_outbound sob ON sobi.outbound_id = sob.id
         WHERE soi.order_id = ?
-          AND sob.status IN ('${SALES_STATUS_KEYS.COMPLETED}', '${SALES_STATUS_KEYS.PROCESSING}')
+          AND sob.status IN (?, ?)
           AND (
             -- 单订单出库：直接匹配order_id
             sob.order_id = soi.order_id
@@ -69,7 +69,7 @@ class SalesOrderStatusService {
           )
         GROUP BY soi.material_id
       `,
-        [orderId]
+        [orderId, SALES_STATUS_KEYS.COMPLETED, SALES_STATUS_KEYS.PROCESSING]
       );
 
       // 2.5 计算每个产品的已退货数量（需从发货数量中扣减）
@@ -326,7 +326,7 @@ class SalesOrderStatusService {
           FROM sales_order_items soi_inner
           INNER JOIN sales_outbound_items sobi ON soi_inner.material_id = sobi.product_id
           INNER JOIN sales_outbound sob ON sobi.outbound_id = sob.id
-          WHERE sob.status IN ('${SALES_STATUS_KEYS.COMPLETED}', '${SALES_STATUS_KEYS.PROCESSING}')
+          WHERE sob.status IN (?, ?)
             AND (
               -- 单订单出库：直接匹配order_id
               sob.order_id = soi_inner.order_id
@@ -355,7 +355,7 @@ class SalesOrderStatusService {
         WHERE so.id = ?
         GROUP BY so.id, so.order_no, so.status
       `,
-        [orderId]
+        [SALES_STATUS_KEYS.COMPLETED, SALES_STATUS_KEYS.PROCESSING, orderId]
       );
 
       if (stats.length === 0) {
@@ -382,7 +382,7 @@ class SalesOrderStatusService {
           SELECT sobi.product_id, SUM(sobi.quantity) as shipped_qty
           FROM sales_outbound_items sobi
           INNER JOIN sales_outbound sob ON sobi.outbound_id = sob.id
-          WHERE sob.status IN ('${SALES_STATUS_KEYS.COMPLETED}', '${SALES_STATUS_KEYS.PROCESSING}')
+          WHERE sob.status IN (?, ?)
             AND (sob.order_id = ? OR (sob.is_multi_order = 1 AND sob.related_orders LIKE CONCAT('%', ?, '%')))
           GROUP BY sobi.product_id
         ) shipped_sub ON soi.material_id = shipped_sub.product_id
@@ -395,7 +395,7 @@ class SalesOrderStatusService {
         ) returned_sub ON soi.material_id = returned_sub.product_id
         WHERE soi.order_id = ?
       `,
-        [orderId, orderId, orderId, orderId]
+        [SALES_STATUS_KEYS.COMPLETED, SALES_STATUS_KEYS.PROCESSING, orderId, orderId, orderId, orderId]
       );
 
       let unshippedItems = 0;

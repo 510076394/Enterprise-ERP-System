@@ -7,7 +7,6 @@
 
 const { pool } = require('../config/db');
 const logger = require('../utils/logger');
-const bcrypt = require('bcryptjs');
 const PasswordSecurity = require('../utils/passwordSecurity');
 
 // 系统管理模块模型
@@ -259,8 +258,8 @@ const systemModel = {
   },
 
   async resetUserPassword(id, password) {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // ✅ 统一使用 PasswordSecurity 加密，与 createUser 保持一致
+    const hashedPassword = await PasswordSecurity.hashPassword(password);
 
     const [result] = await pool.execute(
       'UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?',

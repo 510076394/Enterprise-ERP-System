@@ -215,10 +215,8 @@ const baseDataController = {
       );
 
       // 🔒 权限过滤敏感价格字段 (AOP脱敏)
-      const hasPerm = hasFinancePermission(req.user) ||
-        (req.user?.permissions?.includes('basedata:materials:view_cost')) ||
-        (req.user?.permissions?.includes('basedata:materials:view_price')) ||
-        (req.user?.permissions?.includes('*'));
+      // ✅ hasFinancePermission 已统一走 PermissionService，无需额外手动检查
+      const hasPerm = await hasFinancePermission(req.user);
         
       const filteredData = desensitizeData(result.data, hasPerm);
 
@@ -241,10 +239,7 @@ const baseDataController = {
       const material = await materialService.getMaterialById(req.params.id);
       if (material) {
         // 🔒 权限过滤敏感价格字段 (AOP脱敏)
-        const hasPerm = hasFinancePermission(req.user) ||
-          (req.user?.permissions?.includes('basedata:materials:view_cost')) ||
-          (req.user?.permissions?.includes('basedata:materials:view_price')) ||
-          (req.user?.permissions?.includes('*'));
+        const hasPerm = await hasFinancePermission(req.user);
           
         const filtered = desensitizeData(material, hasPerm);
 
@@ -272,7 +267,7 @@ const baseDataController = {
       const materials = await Promise.all(ids.map((id) => materialService.getMaterialById(id)));
       const validMaterials = materials.filter((m) => m !== null);
       
-      const hasPerm = hasFinancePermission(req.user) || req.user?.permissions?.includes('*');
+      const hasPerm = await hasFinancePermission(req.user);
       const filteredMaterials = desensitizeData(validMaterials, hasPerm);
 
       ResponseHandler.success(res, filteredMaterials, '批量获取物料成功');

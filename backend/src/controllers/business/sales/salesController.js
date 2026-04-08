@@ -770,7 +770,8 @@ exports.convertQuotationToOrder = async (req, res) => {
     }
 
     // 更新报价单状态为"已转订单"
-    await conn.query('UPDATE sales_quotations SET status = ? WHERE id = ?', ['sent', id]);
+    // ✅ 安全修复：添加前置状态条件，防止 TOCTOU 竞态导致已关闭的报价单被重复转订单
+    await conn.query('UPDATE sales_quotations SET status = ? WHERE id = ? AND status = ?', ['sent', id, 'accepted']);
 
     // 提交事务
     await conn.commit();
@@ -4126,7 +4127,7 @@ exports.createSalesExchange = async (req, res) => {
 
     // 如果创建时状态就是"已完成"，立即处理库存操作
     if (reason === '已完成' && (hasNewFormat || hasOldFormat)) {
-      await processExchangeInventory(connection, exchangeId, req.user?.username || 'admin');
+      await processExchangeInventory(connection, exchangeId, req.user?.username || 'system');
     }
 
     await connection.commit();
@@ -4304,7 +4305,7 @@ exports.updateSalesExchange = async (req, res) => {
     });
 
     if (status === '已完成' && currentStatus !== '已完成') {
-      await processExchangeInventory(connection, id, req.user?.username || 'admin');
+      await processExchangeInventory(connection, id, req.user?.username || 'system');
 
       // 获取换货单信息用于生成差价分录
       const [exchangeInfo] = await connection.query('SELECT * FROM sales_exchanges WHERE id = ?', [

@@ -70,7 +70,7 @@ class FinanceIntegrationService {
       `SELECT invoice_number 
        FROM ${prefix === 'AR' ? 'ar_invoices' : 'ap_invoices'} 
        WHERE invoice_number LIKE ? 
-       ORDER BY id DESC LIMIT 1`,
+       ORDER BY id DESC LIMIT 1 FOR UPDATE`,
       [`${prefix}${dateStr}%`]
     );
 
@@ -126,9 +126,10 @@ class FinanceIntegrationService {
         return { skipped: true, message: '订单无明细' };
       }
 
+      // ✅ 精度修复：使用整数运算避免浮点累加误差（与 GLService 对齐）
       const totalAmount = orderItems.reduce((sum, item) => {
-        return sum + parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0);
-      }, 0);
+        return sum + Math.round(parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0) * 100);
+      }, 0) / 100;
 
       const paymentTermDays = financeConfig.get('invoice.defaultPaymentTermDays', 30);
       const invoiceDate = new Date();
@@ -248,7 +249,8 @@ class FinanceIntegrationService {
         return { skipped: true, message: '无物料明细' };
       }
 
-      const totalAmount = returnItems.reduce((sum, item) => sum + parseFloat(item.return_quantity || 0) * parseFloat(item.unit_price || 0), 0);
+      // ✅ 精度修复：整数运算
+      const totalAmount = returnItems.reduce((sum, item) => sum + Math.round(parseFloat(item.return_quantity || 0) * parseFloat(item.unit_price || 0) * 100), 0) / 100;
       const creditNoteAmount = -Math.abs(totalAmount);
       if (totalAmount === 0) {
         await connection.rollback();
@@ -338,7 +340,8 @@ class FinanceIntegrationService {
         return { skipped: true, message: '无明细' };
       }
 
-      const totalAmount = receiptItems.reduce((sum, item) => sum + parseFloat(item.quantity || 0) * parseFloat(item.price || 0), 0);
+      // ✅ 精度修复：整数运算
+      const totalAmount = receiptItems.reduce((sum, item) => sum + Math.round(parseFloat(item.quantity || 0) * parseFloat(item.price || 0) * 100), 0) / 100;
       const invoiceDateStr = purchaseReceipt.receipt_date || new Date().toISOString().split('T')[0];
       const currentPeriod = await this.getCurrentPeriod(connection, invoiceDateStr);
       const payableAccountId = await this.getAccountIdByKey('ACCOUNTS_PAYABLE');
@@ -423,7 +426,8 @@ class FinanceIntegrationService {
         return { skipped: true, message: '无明细' };
       }
 
-      const totalAmount = returnItems.reduce((sum, item) => sum + parseFloat(item.return_quantity || 0) * parseFloat(item.unit_price || 0), 0);
+      // ✅ 精度修复：整数运算
+      const totalAmount = returnItems.reduce((sum, item) => sum + Math.round(parseFloat(item.return_quantity || 0) * parseFloat(item.unit_price || 0) * 100), 0) / 100;
       const creditNoteAmount = -Math.abs(totalAmount);
       if (totalAmount === 0) {
         await connection.rollback();
@@ -508,7 +512,8 @@ class FinanceIntegrationService {
         return { skipped: true, message: '无明细' };
       }
 
-      const totalCost = outboundItems.reduce((sum, item) => sum + parseFloat(item.quantity || 0) * parseFloat(item.cost_price || item.price || 0), 0);
+      // ✅ 精度修复：整数运算
+      const totalCost = outboundItems.reduce((sum, item) => sum + Math.round(parseFloat(item.quantity || 0) * parseFloat(item.cost_price || item.price || 0) * 100), 0) / 100;
       if (totalCost <= 0) {
         await connection.rollback();
         return { skipped: true, message: '成本为0' };
@@ -582,7 +587,8 @@ class FinanceIntegrationService {
         [salesOutbound.id]
       );
 
-      const amountExcludingTax = outboundItems.reduce((sum, item) => sum + parseFloat(item.quantity || 0) * parseFloat(item.price || 0), 0);
+      // ✅ 精度修复：整数运算
+      const amountExcludingTax = outboundItems.reduce((sum, item) => sum + Math.round(parseFloat(item.quantity || 0) * parseFloat(item.price || 0) * 100), 0) / 100;
       const taxRate = 13.0;
       const taxAmount = amountExcludingTax * (taxRate / 100);
       const totalAmount = amountExcludingTax + taxAmount;
@@ -648,7 +654,8 @@ class FinanceIntegrationService {
         [purchaseReceipt.id]
       );
 
-      const amountExcludingTax = receiptItems.reduce((sum, item) => sum + parseFloat(item.qualified_quantity || 0) * parseFloat(item.price || 0), 0);
+      // ✅ 精度修复：整数运算
+      const amountExcludingTax = receiptItems.reduce((sum, item) => sum + Math.round(parseFloat(item.qualified_quantity || 0) * parseFloat(item.price || 0) * 100), 0) / 100;
       const taxRate = 13.0;
       const taxAmount = amountExcludingTax * (taxRate / 100);
       const totalAmount = amountExcludingTax + taxAmount;

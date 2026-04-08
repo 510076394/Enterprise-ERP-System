@@ -123,7 +123,7 @@ const getReceipts = async (req, res) => {
         };
       });
 
-      const hasPerm = hasFinancePermission(req.user);
+      const hasPerm = await hasFinancePermission(req.user);
       const desensitizedReceipts = desensitizeData(receipts, hasPerm);
 
       res.json({
@@ -271,7 +271,7 @@ const getReceipt = async (req, res) => {
         receiptDate: receiptDate,
       };
 
-      const hasPerm = hasFinancePermission(req.user);
+      const hasPerm = await hasFinancePermission(req.user);
       const desensitizedResponse = desensitizeData(response, hasPerm);
 
       // 直接返回响应对象，不再嵌套在data中

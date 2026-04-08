@@ -385,6 +385,63 @@ const bomService = {
     };
   },
 
+  // ✅ 公共方法: BOM 明细批量插入（createBom/updateBom 共用）
+  async _insertBomDetails(connection, bomId, details) {
+    const idMapping = {};
+    const sortedDetails = details.sort((a, b) => (a.level || 1) - (b.level || 1));
+
+    for (const detail of sortedDetails) {
+      const normalizedDetail = this.validateAndNormalizeDetail(detail);
+
+      let actualParentId = 0;
+      if (detail.parent_id && detail.parent_id !== 0 && detail.parent_id !== '0') {
+        actualParentId = idMapping[detail.parent_id] || 0;
+      }
+
+      const [detailResult] = await connection.execute(
+        'INSERT INTO bom_details (bom_id, material_id, quantity, unit_id, remark, level, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [
+          bomId,
+          normalizedDetail.material_id,
+          normalizedDetail.quantity,
+          normalizedDetail.unit_id,
+          normalizedDetail.remark,
+          normalizedDetail.level,
+          actualParentId,
+        ]
+      );
+
+      if (detail.id) {
+        idMapping[detail.id] = detailResult.insertId;
+      }
+    }
+
+    return idMapping;
+  },
+
+  // ✅ 公共方法: BOM 变更后异步重算标准成本
+  _asyncRecalcStandardCost(productId) {
+    setImmediate(async () => {
+      try {
+        const CostAccountingService = require('./business/CostAccountingService');
+        const result = await CostAccountingService.calculateStandardCost(productId, 1);
+        if (result && result.standardCost) {
+          await pool.execute(
+            `INSERT INTO standard_costs 
+             (product_id, standard_price, effective_date, is_active, source_type)
+             VALUES (?, ?, CURDATE(), 1, 'rollup')
+             ON DUPLICATE KEY UPDATE
+             standard_price = VALUES(standard_price), updated_at = NOW()`,
+            [productId, result.standardCost.unitCost || 0]
+          );
+          logger.info(`[BOM变更] 产品 ${productId} 标准成本已自动重算: ${result.standardCost.unitCost}`);
+        }
+      } catch (e) {
+        logger.warn('[BOM变更] 自动重算标准成本失败:', e.message);
+      }
+    });
+  },
+
   async createBom(bomData, details) {
     const connection = await pool.getConnection();
     try {
@@ -407,36 +464,9 @@ const bomService = {
       );
 
       const bomId = result.insertId;
-      const idMapping = {};
-      const sortedDetails = details.sort((a, b) => (a.level || 1) - (b.level || 1));
 
-      for (const detail of sortedDetails) {
-        // 验证和规范化明细数据
-        const normalizedDetail = this.validateAndNormalizeDetail(detail);
-
-        // 处理父级ID映射
-        let actualParentId = 0;
-        if (detail.parent_id && detail.parent_id !== 0 && detail.parent_id !== '0') {
-          actualParentId = idMapping[detail.parent_id] || 0;
-        }
-
-        const [detailResult] = await connection.execute(
-          'INSERT INTO bom_details (bom_id, material_id, quantity, unit_id, remark, level, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [
-            bomId,
-            normalizedDetail.material_id,
-            normalizedDetail.quantity,
-            normalizedDetail.unit_id,
-            normalizedDetail.remark,
-            normalizedDetail.level,
-            actualParentId,
-          ]
-        );
-
-        if (detail.id) {
-          idMapping[detail.id] = detailResult.insertId;
-        }
-      }
+      // ✅ 使用公共方法插入明细
+      await this._insertBomDetails(connection, bomId, details);
 
       await connection.commit();
 
@@ -464,35 +494,8 @@ const bomService = {
         logger.warn('更新has_sub_bom标记失败:', e.message);
       }
 
-      // BOM创建后异步触发标准成本重算
-      setImmediate(async () => {
-        try {
-          const CostAccountingService = require('./business/CostAccountingService');
-          const result = await CostAccountingService.calculateStandardCost(
-            normalizedBomData.product_id,
-            1
-          );
-          if (result && result.standardCost) {
-            // 保存标准成本到数据库（匹配 standard_costs 实际表结构）
-            await pool.execute(
-              `INSERT INTO standard_costs 
-               (product_id, standard_price, effective_date, is_active, source_type)
-               VALUES (?, ?, CURDATE(), 1, 'rollup')
-               ON DUPLICATE KEY UPDATE
-               standard_price = VALUES(standard_price), updated_at = NOW()`,
-              [
-                normalizedBomData.product_id,
-                result.standardCost.unitCost || 0,
-              ]
-            );
-            logger.info(
-              `[BOM变更] 产品 ${normalizedBomData.product_id} 标准成本已自动重算: ${result.standardCost.unitCost}`
-            );
-          }
-        } catch (e) {
-          logger.warn('[BOM变更] 自动重算标准成本失败:', e.message);
-        }
-      });
+      // ✅ 使用公共方法异步重算标准成本
+      this._asyncRecalcStandardCost(normalizedBomData.product_id);
 
       return newBom;
     } catch (error) {
@@ -561,35 +564,8 @@ const bomService = {
 
       const newBomId = result.insertId;
 
-      // ⑤ 插入新版本的明细数据
-      const idMapping = {};
-      const sortedDetails = details.sort((a, b) => (a.level || 1) - (b.level || 1));
-
-      for (const detail of sortedDetails) {
-        const normalizedDetail = this.validateAndNormalizeDetail(detail);
-
-        let actualParentId = 0;
-        if (detail.parent_id && detail.parent_id !== 0 && detail.parent_id !== '0') {
-          actualParentId = idMapping[detail.parent_id] || 0;
-        }
-
-        const [detailResult] = await connection.execute(
-          'INSERT INTO bom_details (bom_id, material_id, quantity, unit_id, remark, level, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [
-            newBomId,
-            normalizedDetail.material_id,
-            normalizedDetail.quantity,
-            normalizedDetail.unit_id,
-            normalizedDetail.remark,
-            normalizedDetail.level,
-            actualParentId,
-          ]
-        );
-
-        if (detail.id) {
-          idMapping[detail.id] = detailResult.insertId;
-        }
-      }
+      // ✅ 使用公共方法插入明细
+      await this._insertBomDetails(connection, newBomId, details);
 
       await connection.commit();
 
@@ -601,35 +577,8 @@ const bomService = {
         logger.warn('使BOM缓存失效失败:', e.message);
       }
 
-      // 新版本 BOM 异步触发标准成本重算
-      setImmediate(async () => {
-        try {
-          const CostAccountingService = require('./business/CostAccountingService');
-          const costResult = await CostAccountingService.calculateStandardCost(
-            normalizedBomData.product_id,
-            1
-          );
-          if (costResult && costResult.standardCost) {
-            // 保存标准成本到数据库（匹配 standard_costs 实际表结构）
-            await pool.execute(
-              `INSERT INTO standard_costs 
-               (product_id, standard_price, effective_date, is_active, source_type)
-               VALUES (?, ?, CURDATE(), 1, 'rollup')
-               ON DUPLICATE KEY UPDATE
-               standard_price = VALUES(standard_price), updated_at = NOW()`,
-              [
-                normalizedBomData.product_id,
-                costResult.standardCost.unitCost || 0,
-              ]
-            );
-            logger.info(
-              `[BOM版本升级] 产品 ${normalizedBomData.product_id} 标准成本已自动重算: ${costResult.standardCost.unitCost}`
-            );
-          }
-        } catch (e) {
-          logger.warn('[BOM版本升级] 自动重算标准成本失败:', e.message);
-        }
-      });
+      // ✅ 使用公共方法异步重算标准成本
+      this._asyncRecalcStandardCost(normalizedBomData.product_id);
 
       // ⑥ 返回新版本 BOM 信息
       logger.info(`[BOM版本升级] 旧版本 #${id}(${oldBom.version}) → 新版本 #${newBomId}(${newVersion})`);

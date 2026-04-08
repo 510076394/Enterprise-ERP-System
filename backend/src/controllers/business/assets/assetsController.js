@@ -680,7 +680,7 @@ const assetsController = {
       }
 
       const auditStatus = action === 'approve' ? 'approved' : 'draft';
-      const auditedBy = action === 'approve' ? (req.user?.username || 'admin') : null;
+      const auditedBy = action === 'approve' ? (req.user?.username || 'system') : null;
       const auditedAt = action === 'approve' ? new Date() : null;
 
       await db.pool.query(

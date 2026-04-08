@@ -765,26 +765,20 @@ const systemController = {
         logger.error('❌ 清除缓存失败:', cacheError);
       }
 
-      // ✅ 记录权限变更审计日志
+      // ✅ 使用统一的 AuditService 记录权限变更审计日志
       try {
-        await pool.execute(
-          `INSERT INTO audit_logs (user_id, username, module, action, entity_type, entity_id,
-           method, path, old_value, new_value, ip_address, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-          [
-            req.user.id,
-            req.user.username,
-            'system',
-            'UPDATE_PERMISSIONS',
-            'role',
-            id,
-            req.method,
-            req.path,
-            JSON.stringify({ menuIds: oldMenuIds }),
-            JSON.stringify({ menuIds, halfCheckedIds, uncheckedIds }),
-            req.ip || req.connection?.remoteAddress,
-          ]
-        );
+        await AuditService.log({
+          userId: req.user.id,
+          username: req.user.username,
+          module: AuditModule.SYSTEM,
+          action: AuditAction.UPDATE,
+          entityType: 'role',
+          entityId: String(id),
+          oldValue: { menuIds: oldMenuIds },
+          newValue: { menuIds, halfCheckedIds, uncheckedIds },
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          userAgent: req.headers['user-agent'],
+        });
         logger.info(`[审计日志] 用户 ${req.user.username} 更新了角色 ${role.name} 的权限`);
       } catch (auditError) {
         logger.warn('记录审计日志失败:', auditError.message);

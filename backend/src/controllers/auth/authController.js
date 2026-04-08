@@ -20,6 +20,23 @@ const { pool } = require('../../config/db');
 const PasswordSecurity = require('../../utils/passwordSecurity');
 const AccountLockService = require('../../services/system/AccountLockService');
 
+/**
+ * 为用户对象附加角色信息（消除重复查询）
+ * @param {Object} user - 用户对象（会被原地修改）
+ * @returns {Promise<void>}
+ */
+async function attachUserRoles(user) {
+  const [roles] = await pool.execute(
+    `SELECT r.id, r.name, r.code FROM roles r
+     JOIN user_roles ur ON r.id = ur.role_id
+     WHERE ur.user_id = ?`,
+    [user.id]
+  );
+  user.roles = roles;
+  user.role_name = roles.length > 0 ? roles[0].name : '';
+  user.role_names = roles.map((r) => r.name).join(', ');
+}
+
 const login = async (req, res) => {
   const { username, password } = req.body;
 
@@ -119,18 +136,8 @@ const getUserProfile = async (req, res) => {
 
     const user = users[0];
 
-    // 获取用户的角色信息
-    const [roles] = await pool.execute(
-      `SELECT r.id, r.name, r.code FROM roles r
-       JOIN user_roles ur ON r.id = ur.role_id
-       WHERE ur.user_id = ?`,
-      [userId]
-    );
-
-    // 添加角色信息到用户对象
-    user.roles = roles;
-    user.role_name = roles.length > 0 ? roles[0].name : ''; // 第一个角色的名称
-    user.role_names = roles.map((r) => r.name).join(', '); // 所有角色名称
+    // 附加角色信息到用户对象
+    await attachUserRoles(user);
 
     ResponseHandler.success(res, user, '获取用户信息成功');
   } catch (error) {
@@ -206,18 +213,8 @@ const updateUserProfile = async (req, res) => {
 
     const user = users[0];
 
-    // 获取用户的角色信息
-    const [roles] = await pool.execute(
-      `SELECT r.id, r.name, r.code FROM roles r
-       JOIN user_roles ur ON r.id = ur.role_id
-       WHERE ur.user_id = ?`,
-      [userId]
-    );
-
-    // 添加角色信息到用户对象
-    user.roles = roles;
-    user.role_name = roles.length > 0 ? roles[0].name : '';
-    user.role_names = roles.map((r) => r.name).join(', ');
+    // 附加角色信息到用户对象
+    await attachUserRoles(user);
 
     ResponseHandler.success(res, user, '更新用户信息成功');
   } catch (error) {
@@ -321,10 +318,9 @@ const getUserPermissions = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // ✅ 统一使用 authUtils 中的权限获取逻辑
-    // 这样确保前端和后端使用完全相同的权限数据
-    const { PermissionUtils } = require('../../utils/authUtils');
-    const permissions = await PermissionUtils.getUserPermissions(userId);
+    // ✅ 直接使用 PermissionService 获取权限
+    const PermissionService = require('../../services/PermissionService');
+    const permissions = await PermissionService.getUserPermissions(userId);
 
     logger.info(
       `📋 [获取权限] 用户 ${req.user.username}(ID:${userId}) 权限数: ${permissions.length}`

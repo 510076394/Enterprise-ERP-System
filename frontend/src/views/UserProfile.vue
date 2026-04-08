@@ -361,7 +361,7 @@ const loadUserProfile = async () => {
         name: user.real_name || user.username,
         email: user.email,
         phone: user.phone || '13800138000',
-        role: user.role || '管理员',
+        role: user.role_name || user.roleNames || user.role || '未分配角色',
         avatar: user.avatar,
         location: ['beijing', 'haidian'],
         bio: user.bio || '这家伙很懒，什么都没写~'

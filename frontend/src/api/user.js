@@ -1,5 +1,9 @@
 import { api } from '../services/axiosInstance';
 
+/**
+ * 用户个人中心 API
+ * 仅包含已验证在前端被实际调用的方法
+ */
 export const userApi = {
     // 用户个人信息
     getProfile: () => api.get('/auth/profile'),
@@ -10,35 +14,21 @@ export const userApi = {
     }),
     updateAvatarFrame: (frameId) => api.post('/auth/profile/avatar-frame', { frameId }),
 
-    // 获取用户菜单（根据权限过滤的菜单树）
+    // 获取用户菜单（Layout.vue 使用）
     getUserMenus: () => api.get('/auth/menus'),
 
-    // 用户设置
-    getSettings: () => api.get('/users/settings'),
-    updateSettings: (data) => api.put('/users/settings', data),
-
-    // 用户通知
-    getNotifications: (params) => api.get('/users/notifications', { params }),
-    markNotificationRead: (id) => api.put(`/users/notifications/${id}/read`),
-    markAllNotificationsRead: () => api.put('/users/notifications/read-all'),
-    deleteNotification: (id) => api.delete(`/users/notifications/${id}`),
-    getUnreadCount: () => api.get('/users/notifications/unread-count'),
-
-    // 用户活动日志
-    getActivities: (params) => api.get('/user-activities', { params }),
-
-    // 用户统计数据
-    getStatistics: () => api.get('/user-activities/statistics'),
-
-    // 用户在线时长排行榜
+    // 用户在线时长排行榜（Dashboard.vue 使用）
     getOnlineTimeRanking: (params) => api.get('/user-activities/online-time-ranking', { params })
 };
 
-// 待办事项API
+/**
+ * 待办事项 API
+ * 仅包含已验证在前端被实际调用的方法
+ */
 export const todoApi = {
     // 获取待办事项列表
     getTodos: (params) => api.get('/todos', { params }),
-    getAllTodos: (params) => api.get('/todos', { params }), // 别名,兼容旧代码
+    getAllTodos: (params) => api.get('/todos', { params }),
 
     // 获取待办事项详情
     getTodo: (id) => api.get(`/todos/${id}`),

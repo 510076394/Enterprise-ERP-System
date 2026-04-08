@@ -3,7 +3,7 @@
  * 用于记录所有发票状态变更历史
  */
 
-const db = require('../database');
+const db = require('../config/db');
 const logger = require('./logger');
 
 /**

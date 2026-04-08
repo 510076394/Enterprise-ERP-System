@@ -303,8 +303,18 @@ class BusinessUtils {
             params.push(`%${value}%`, `%${value}%`, `%${value}%`);
             break;
           default:
-            conditions.push(`${key} = ?`);
-            params.push(value);
+            // ✅ 安全修复：添加列名白名单，防止用户传入的 key 成为 SQL 注入向量
+            // 只有预定义的数据库列名才允许拼入 SQL 的 WHERE 子句
+            const ALLOWED_FILTER_COLUMNS = [
+              'account_id', 'bank_account_id', 'transaction_type',
+              'status', 'category', 'bank_id', 'currency_code',
+              'created_by', 'approved_by'
+            ];
+            if (ALLOWED_FILTER_COLUMNS.includes(key)) {
+              conditions.push(`${key} = ?`);
+              params.push(value);
+            }
+            // 不在白名单中的 key 会被静默忽略，不会拼入 SQL
         }
       }
     });

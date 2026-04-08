@@ -4,7 +4,7 @@
  * @date 2025-12-15
  */
 
-const logger = require('./logger');
+const { logger } = require('./logger');
 const { pool } = require('../config/db');
 const cacheService = require('../services/cacheService');
 const PermissionService = require('../services/PermissionService');
@@ -27,7 +27,7 @@ class PermissionDiagnostics {
       // 1. 检查用户基本信息
       console.log('📋 1. 用户基本信息');
       const [users] = await pool.execute(
-        'SELECT id, username, role, status FROM users WHERE id = ?',
+        'SELECT id, username, status FROM users WHERE id = ?',
         [userId]
       );
 
@@ -38,7 +38,6 @@ class PermissionDiagnostics {
 
       const user = users[0];
       console.log(`   用户名: ${user.username}`);
-      console.log(`   角色字段: ${user.role}`);
       console.log(`   状态: ${user.status === 1 ? '✅ 启用' : '❌ 禁用'}`);
       console.log('');
 

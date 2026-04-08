@@ -3,7 +3,7 @@
  * 用于定期检查并更新逾期发票的状态
  */
 
-const db = require('../database');
+const db = require('../config/db');
 const { logStatusChange } = require('./invoiceStatusLogger');
 const logger = require('./logger');
 
