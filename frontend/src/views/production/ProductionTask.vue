@@ -26,7 +26,7 @@
             v-model="searchForm.keyword"
             placeholder="请输入"
             clearable
-
+            @keyup.enter="fetchTaskList"
           />
         </el-form-item>
         <el-form-item label="时间范围">
@@ -268,6 +268,7 @@
         :model="formData"
         :rules="rules"
         label-width="100px"
+        @keydown="taskFormKeydown"
       >
         <el-row :gutter="20">
           <el-col :span="12">
@@ -457,7 +458,7 @@
       width="500px"
       destroy-on-close
     >
-      <el-form :model="materialIssueForm" label-width="100px">
+      <el-form :model="materialIssueForm" label-width="100px" @keydown="issueFormKeydown">
         <el-form-item label="任务编号">
           <el-input v-model="materialIssueForm.taskCode" disabled />
         </el-form-item>
@@ -500,11 +501,14 @@ import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { parseQuantity, formatQuantity, getQuantityFromRelatedItem } from '@/utils/helpers/quantity'
 import { useAuthStore } from '@/stores/auth'
 import { parseListData } from '@/utils/responseParser'
+import { useFormKeyboardNav } from '@/composables/useFormKeyboardNav'
 
 // 获取当前登录用户
 const authStore = useAuthStore()
 
-// 权限控制统一使用模板中的 v-permission 指令
+// ✅ 键盘导航：Enter 跳转下一字段
+const { onFormKeydown: taskFormKeydown } = useFormKeyboardNav(() => handleModalOk())
+const { onFormKeydown: issueFormKeydown } = useFormKeyboardNav(() => handleMaterialIssue())
 
 // 状态和数据
 const loading = ref(false)

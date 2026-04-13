@@ -19,10 +19,14 @@ import { parseQuantity, formatQuantity } from '@/utils/helpers/quantity'
 import { SEARCH_CONFIG, searchMaterials, mapMaterialData } from '@/utils/searchConfig'
 import { useAuthStore } from '@/stores/auth'
 import { parseListData } from '@/utils/responseParser'
+import { useFormKeyboardNav } from '@/composables/useFormKeyboardNav'
 
 // 权限store
 const authStore = useAuthStore()
 const router = useRouter()
+
+// ✅ 键盘导航：Enter 跳转下一字段，最后一个字段按 Enter 自动提交
+const { onFormKeydown: planFormKeydown } = useFormKeyboardNav(() => handleModalOk())
 
 // 数据定义
 const loading = ref(false)
@@ -1509,7 +1513,7 @@ const formatMaterialForDisplay = (material) => {
             v-model="searchForm.keyword"
             placeholder="计划编号/合同编码/产品"
             clearable
-
+            @keyup.enter="handleSearch"
           />
         </el-form-item>
         <el-form-item label="时间范围">
@@ -1778,6 +1782,7 @@ const formatMaterialForDisplay = (material) => {
         :model="formData"
         :rules="rules"
         label-width="100px"
+        @keydown="planFormKeydown"
       >
         <el-row :gutter="20">
           <el-col :span="8">

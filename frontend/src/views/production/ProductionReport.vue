@@ -274,6 +274,7 @@
         label-width="100px"
         label-position="right"
         class="report-form"
+        @keydown="reportFormKeydown"
       >
         <el-divider content-position="left">基本信息</el-divider>
         <el-row :gutter="20">
@@ -459,9 +460,13 @@ import axios from '@/services/api'
 import { parseListData } from '@/utils/responseParser'
 import { productionApi } from '@/api/production'
 import { useAuthStore } from '@/stores/auth'
+import { useFormKeyboardNav } from '@/composables/useFormKeyboardNav'
 
 // 权限store
 const authStore = useAuthStore()
+
+// ✅ 键盘导航：Enter 跳转下一字段，最后一个字段 Enter 提交
+const { onFormKeydown: reportFormKeydown } = useFormKeyboardNav(() => handleReportSubmit())
 
 // 权限计算属性（修复：之前未定义导致运行时 TypeError）
 const canView = computed(() => authStore.hasPermission('production:productionreport:read'));

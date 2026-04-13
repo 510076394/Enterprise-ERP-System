@@ -385,7 +385,7 @@
       destroy-on-close
     >
       <div v-loading="dialogLoading">
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px" @keydown="salesFormKeydown">
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="客户名称" prop="customer_id">
@@ -752,6 +752,8 @@ import { useRouter } from 'vue-router'
 const authStore = useAuthStore()
 const router = useRouter()
 
+import { useFormKeyboardNav } from '@/composables/useFormKeyboardNav'
+
 import { Search, Plus, Upload, Download, Refresh } from '@element-plus/icons-vue'
 import { getSalesStatusText, getSalesStatusColor } from '@/constants/systemConstants'
 
@@ -849,6 +851,9 @@ const {
   handleSubmit, handleAdd, handleEdit,
   vatRateOptions, defaultVATRate, financeStore
 } = useOrderForm(fetchData, updateParams)
+
+// ✅ 键盘导航：Enter 跳转下一字段
+const { onFormKeydown: salesFormKeydown } = useFormKeyboardNav(() => handleSubmit())
 
 const {
   detailsVisible, detailsLoading, currentOrder,
